@@ -244,10 +244,18 @@ export default function App() {
     setSpices((prev) => [...prev, newSpice]);
   };
 
-  // Reset to original default spices
+  // Reset all values to zero and empty
   const handleResetToDefault = () => {
-    if (window.confirm('کیا آپ گرم مصالحہ کی معیاری فہرست بحال کرنا چاہتے ہیں؟')) {
-      setSpices(INITIAL_GARAM_MASALA_SPICES);
+    if (window.confirm('کیا آپ تمام مصالحوں کی مقداریں (گرام اور گھریلو پیمائش) صفر (0) کرنا چاہتے ہیں؟')) {
+      setSpices((prev) =>
+        prev.map((item) => ({
+          ...item,
+          weightGrams: 0,
+          householdAmount: '',
+          householdUnit: '',
+          householdMeasure: '',
+        }))
+      );
     }
   };
 
@@ -298,7 +306,7 @@ export default function App() {
             </div>
 
             {/* Quick Action Buttons */}
-            <div className="flex items-center gap-2 self-end md:self-center flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-2 self-end md:self-center flex-wrap sm:flex-nowrap print:hidden">
               <TemplateManager
                 currentSpices={spices}
                 templates={templates}
@@ -374,7 +382,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80">
+            <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80 print:hidden">
               <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
                 <span>ترتیب کا طریقہ</span>
                 <ArrowUpDown className="w-3.5 h-3.5 text-amber-700" />
@@ -387,7 +395,7 @@ export default function App() {
 
           {/* Visual Distribution Strip */}
           {totalWeight > 0 && (
-            <div className="mt-5">
+            <div className="mt-5 print:hidden">
               <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5">
                 <span>مصالحوں کا تناسبی جائزہ (Visual Blend Distribution)</span>
                 <span className="font-mono text-[11px] text-stone-400">100% تناسب</span>
@@ -426,7 +434,7 @@ export default function App() {
         </header>
 
         {/* Drag Instruction Banner */}
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50/80 border border-amber-200 text-amber-900 rounded-xl text-xs mb-4">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50/80 border border-amber-200 text-amber-900 rounded-xl text-xs mb-4 print:hidden">
           <Info className="w-4 h-4 shrink-0 text-amber-700" />
           <span>
             <strong>رہنمائی:</strong> کسی بھی مصالحے کو اوپر یا نیچے کرنے کے لیے بائیں جانب بنے ہینڈل (⋮⋮) کو ماؤس سے پکڑ کر اوپر یا نیچے ڈریگ کریں۔ آپ تیر والے بٹن سے بھی ترتیب بدل سکتے ہیں۔
@@ -454,7 +462,7 @@ export default function App() {
                   <th scope="col" className="py-3.5 px-4 text-center w-44">
                     خودکار فی صد تناسب (%)
                   </th>
-                  <th scope="col" className="py-3.5 px-3 text-center w-14">
+                  <th scope="col" className="py-3.5 px-3 text-center w-14 print:hidden">
                     حذف
                   </th>
                 </tr>
@@ -508,7 +516,7 @@ export default function App() {
                     <td className="py-3.5 px-4 text-center font-mono text-base text-amber-900">
                       {totalWeight > 0 ? '100.0%' : '0.0%'}
                     </td>
-                    <td className="py-3.5 px-3"></td>
+                    <td className="py-3.5 px-3 print:hidden"></td>
                   </tr>
                 </tfoot>
               )}
@@ -517,7 +525,7 @@ export default function App() {
         </main>
 
         {/* Add Spice Form Section */}
-        <section aria-label="نیا مصالحہ شامل کرنے کا فارم">
+        <section aria-label="نیا مصالحہ شامل کرنے کا فارم" className="print:hidden">
           <AddSpiceForm onAddSpice={handleAddSpice} />
         </section>
 

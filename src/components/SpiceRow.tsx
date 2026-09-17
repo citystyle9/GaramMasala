@@ -126,14 +126,14 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
         <div className="flex items-center justify-center gap-1.5">
           <div
             title="ماؤس سے پکڑ کر اوپر یا نیچے لے جائیں"
-            className="cursor-grab active:cursor-grabbing p-1.5 text-stone-400 hover:text-amber-700 hover:bg-amber-100/60 rounded-md transition-colors"
+            className="cursor-grab active:cursor-grabbing p-1.5 text-stone-400 hover:text-amber-700 hover:bg-amber-100/60 rounded-md transition-colors print:hidden"
           >
             <GripVertical className="w-4 h-4" />
           </div>
           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-stone-100 text-stone-700 font-semibold text-sm border border-stone-200 font-mono">
             {index + 1}
           </span>
-          <div className="flex flex-col opacity-30 group-hover:opacity-100 transition-opacity">
+          <div className="flex flex-col opacity-30 group-hover:opacity-100 transition-opacity print:hidden">
             <button
               id={`move-up-${spice.id}`}
               type="button"
@@ -206,7 +206,7 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
               type="button"
               onClick={() => setIsEditingName(true)}
               title="نام تبدیل کریں"
-              className="opacity-0 group-hover/name:opacity-100 p-1 text-stone-400 hover:text-amber-700 transition-opacity cursor-pointer"
+              className="opacity-0 group-hover/name:opacity-100 p-1 text-stone-400 hover:text-amber-700 transition-opacity cursor-pointer print:hidden"
             >
               <Edit3 className="w-3.5 h-3.5" />
             </button>
@@ -216,7 +216,8 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
 
       {/* 3. Quantity / Grams (مقدار گرام میں - یہ اور فیصد آپس میں لنک ہیں) */}
       <td className="py-3 px-4">
-        <div className="flex items-center justify-center gap-1.5" dir="ltr">
+        {/* On screen: with + / - buttons and editable input */}
+        <div className="flex items-center justify-center gap-1.5 print:hidden" dir="ltr">
           <button
             type="button"
             onClick={() => onWeightChange(spice.id, Math.max(0, spice.weightGrams - 5))}
@@ -239,9 +240,11 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
               placeholder="0"
               className="w-20 px-2 py-1.5 text-center font-mono font-medium text-stone-900 bg-white border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm shadow-xs"
             />
-            <span className="absolute right-2 top-1.5 text-xs text-stone-400 pointer-events-none font-sans">
-              g
-            </span>
+            {spice.weightGrams > 0 && (
+              <span className="absolute right-2 top-1.5 text-xs text-stone-400 pointer-events-none font-sans">
+                g
+              </span>
+            )}
           </div>
           <button
             type="button"
@@ -251,6 +254,11 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
           >
             +
           </button>
+        </div>
+
+        {/* In Print / PDF: clean plain text only without buttons or input field overlay */}
+        <div className="hidden print:block text-center font-mono text-sm font-semibold text-stone-900" dir="ltr">
+          {spice.weightGrams > 0 ? `${spice.weightGrams} g` : '0 g'}
         </div>
       </td>
 
@@ -341,7 +349,7 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
               type="button"
               onClick={() => setIsEditingMeasure(true)}
               title="مقدار تبدیل کریں یا خالی رکھیں"
-              className="opacity-0 group-hover/measure:opacity-100 p-1 text-stone-400 hover:text-amber-700 transition-opacity cursor-pointer"
+              className="opacity-0 group-hover/measure:opacity-100 p-1 text-stone-400 hover:text-amber-700 transition-opacity cursor-pointer print:hidden"
             >
               <Edit3 className="w-3.5 h-3.5" />
             </button>
@@ -349,18 +357,13 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
         )}
       </td>
 
-      {/* 5. Percentage Calculation (خودکار فی صد تناسب - گرام سے لنک ہے) */}
+      {/* 5. Percentage Calculation (خودکار فی صد تناسب - صرف فیصد دکھاتا ہے) */}
       <td className="py-3 px-4">
-        <div className="w-full max-w-[150px] mx-auto">
-          <div className="flex items-center justify-between mb-1 text-xs">
-            <span className="font-mono font-bold text-stone-800">
-              {percentage.toFixed(1)}%
-            </span>
-            <span className="text-stone-400 text-[11px]">
-              {spice.weightGrams} گرام
-            </span>
+        <div className="w-full max-w-[150px] mx-auto text-center">
+          <div className="text-sm font-mono font-bold text-stone-800 mb-1">
+            {percentage.toFixed(1)}%
           </div>
-          <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
+          <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden border border-stone-200 print:hidden">
             <div
               className="h-full bg-linear-to-r from-amber-500 to-orange-600 rounded-full transition-all duration-300"
               style={{ width: `${Math.min(100, percentage)}%` }}
@@ -370,7 +373,7 @@ export const SpiceRow: React.FC<SpiceRowProps> = ({
       </td>
 
       {/* 6. Delete Action (حذف) */}
-      <td className="py-3 px-3 text-center">
+      <td className="py-3 px-3 text-center print:hidden">
         <button
           id={`delete-spice-${spice.id}`}
           type="button"

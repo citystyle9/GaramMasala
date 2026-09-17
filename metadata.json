@@ -2,5 +2,7 @@
   "name": "Spice Organizer",
   "description": "A simple garam masala spice organizer and percentage ratio calculator with drag-and-drop reordering.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

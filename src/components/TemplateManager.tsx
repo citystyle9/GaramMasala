@@ -5,6 +5,7 @@ import { SpiceItem, RecipeTemplate } from '../types';
 interface TemplateManagerProps {
   currentSpices: SpiceItem[];
   templates: RecipeTemplate[];
+  activeTemplateName?: string | null;
   onSaveTemplate: (name: string) => void;
   onLoadTemplate: (template: RecipeTemplate) => void;
   onDeleteTemplate: (id: string) => void;
@@ -13,6 +14,7 @@ interface TemplateManagerProps {
 export const TemplateManager: React.FC<TemplateManagerProps> = ({
   currentSpices,
   templates,
+  activeTemplateName,
   onSaveTemplate,
   onLoadTemplate,
   onDeleteTemplate,
@@ -158,11 +160,16 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
               <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
                 {templates.map((tpl) => {
                   const tplWeight = tpl.spices.reduce((sum, s) => sum + (Number(s.weightGrams) || 0), 0);
+                  const isActive = activeTemplateName === tpl.name;
                   return (
                     <div
                       key={tpl.id}
                       onClick={() => handleLoad(tpl)}
-                      className="group flex items-center justify-between p-2.5 rounded-xl border border-stone-200 hover:border-amber-400 bg-stone-50/60 hover:bg-amber-50/40 transition-colors cursor-pointer"
+                      className={`group flex items-center justify-between p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                        isActive
+                          ? 'border-amber-500 bg-amber-50/90 ring-1 ring-amber-500'
+                          : 'border-stone-200 hover:border-amber-400 bg-stone-50/60 hover:bg-amber-50/40'
+                      }`}
                     >
                       <button
                         type="button"
@@ -174,9 +181,16 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                       </button>
 
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="font-semibold text-stone-900 text-xs group-hover:text-amber-900">
-                          {tpl.name}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {isActive && (
+                            <span className="text-[10px] bg-amber-600 text-white font-medium px-1.5 py-0.2 rounded-md">
+                              فعال
+                            </span>
+                          )}
+                          <span className="font-semibold text-stone-900 text-xs group-hover:text-amber-900">
+                            {tpl.name}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-2 text-[11px] text-stone-400">
                           <span>{tpl.spices.length} اجزاء ({tplWeight} گرام)</span>
                           <span>•</span>

@@ -9,7 +9,8 @@ import {
   Printer, 
   ArrowUpDown,
   Flame,
-  Info
+  Info,
+  Bookmark
 } from 'lucide-react';
 import { SpiceItem, RecipeTemplate } from './types';
 import { INITIAL_GARAM_MASALA_SPICES } from './defaultSpices';
@@ -19,6 +20,7 @@ import { TemplateManager } from './components/TemplateManager';
 
 const LOCAL_STORAGE_KEY = 'garam_masala_spices_v6';
 const TEMPLATES_STORAGE_KEY = 'garam_masala_templates_v1';
+const ACTIVE_TEMPLATE_STORAGE_KEY = 'garam_masala_active_template_v1';
 
 export default function App() {
   const [spices, setSpices] = useState<SpiceItem[]>(() => {
@@ -71,6 +73,15 @@ export default function App() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [copiedMessage, setCopiedMessage] = useState(false);
 
+  // Active template name currently loaded
+  const [activeTemplateName, setActiveTemplateName] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_TEMPLATE_STORAGE_KEY) || 'معیاری گرم مصالحہ مکسچر';
+    } catch {
+      return 'معیاری گرم مصالحہ مکسچر';
+    }
+  });
+
   // Saved templates state
   const [templates, setTemplates] = useState<RecipeTemplate[]>(() => {
     try {
@@ -94,6 +105,19 @@ export default function App() {
     }
   }, [templates]);
 
+  // Save active template name to localStorage
+  useEffect(() => {
+    try {
+      if (activeTemplateName) {
+        localStorage.setItem(ACTIVE_TEMPLATE_STORAGE_KEY, activeTemplateName);
+      } else {
+        localStorage.removeItem(ACTIVE_TEMPLATE_STORAGE_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }, [activeTemplateName]);
+
   // Save current spices as a new template
   const handleSaveTemplate = (name: string) => {
     const newTemplate: RecipeTemplate = {
@@ -107,15 +131,21 @@ export default function App() {
       spices: JSON.parse(JSON.stringify(spices)),
     };
     setTemplates((prev) => [newTemplate, ...prev]);
+    setActiveTemplateName(name);
   };
 
   // Load a saved template
   const handleLoadTemplate = (template: RecipeTemplate) => {
     setSpices(JSON.parse(JSON.stringify(template.spices)));
+    setActiveTemplateName(template.name);
   };
 
   // Delete a saved template
   const handleDeleteTemplate = (id: string) => {
+    const deletedTpl = templates.find((t) => t.id === id);
+    if (deletedTpl && activeTemplateName === deletedTpl.name) {
+      setActiveTemplateName('اپنی مرضی کا فارمولا (کسٹم)');
+    }
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   };
 
@@ -278,7 +308,14 @@ export default function App() {
   };
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    if (activeTemplateName) {
+      document.title = `${activeTemplateName} - گرم مصالحہ آرگنائزر`;
+    }
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   return (
@@ -286,20 +323,33 @@ export default function App() {
       <div className="max-w-4xl mx-auto">
         
         {/* Top Header Card */}
-        <header className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-7 shadow-xs mb-6">
+        <header className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-7 shadow-xs mb-6 print:border-b print:border-stone-300 print:rounded-none print:shadow-none print:p-2 print:mb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0 shadow-xs border border-amber-200">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0 shadow-xs border border-amber-200 print:hidden">
                 <Flame className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
-                  <span>گرم مصالحہ آرگنائزر</span>
-                  <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans" dir="ltr">
-                    Spice Organizer
-                  </span>
-                </h1>
-                <p className="text-stone-600 text-sm mt-1 leading-relaxed">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
+                    <span>گرم مصالحہ آرگنائزر</span>
+                    <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans print:hidden" dir="ltr">
+                      Spice Organizer
+                    </span>
+                  </h1>
+
+                  {/* Active Template Badge (Visible on screen and prominently on print) */}
+                  {activeTemplateName && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 text-xs font-semibold shadow-2xs">
+                      <Bookmark className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                      <span>ٹیمپلیٹ نسخہ:</span>
+                      <span className="font-bold text-amber-900 underline decoration-amber-400 underline-offset-2">
+                        {activeTemplateName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-stone-600 text-sm mt-1 leading-relaxed print:text-xs">
                   ماؤس سے پکڑ کر اوپر نیچے ترتیب دیں، ہر مصالحے کی مقدار (گرام) درج کریں اور کل اجزاء میں خودکار فی صد تناسب دیکھیں۔
                 </p>
               </div>
@@ -310,6 +360,7 @@ export default function App() {
               <TemplateManager
                 currentSpices={spices}
                 templates={templates}
+                activeTemplateName={activeTemplateName}
                 onSaveTemplate={handleSaveTemplate}
                 onLoadTemplate={handleLoadTemplate}
                 onDeleteTemplate={handleDeleteTemplate}

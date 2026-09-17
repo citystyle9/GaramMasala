@@ -3,16 +3,45 @@
 @media print {
   /* Page margins and general setup */
   @page {
-    margin: 1.2cm;
+    margin: 1.2cm 1cm 1.5cm 1cm;
     size: A4 portrait;
+
+    /* Professional page numbering at bottom center/left */
+    @bottom-left {
+      content: "صفحہ " counter(page) " / " counter(pages);
+      font-size: 9pt;
+      color: #78716c;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    @bottom-right {
+      content: "گرم مصالحہ آرگنائزر (Garam Masala Organizer)";
+      font-size: 8pt;
+      color: #a8a29e;
+    }
   }
 
   body {
     background-color: #ffffff !important;
     color: #1c1917 !important;
-    font-size: 11pt;
+    font-size: 10.5pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* CRITICAL: Ensure table footer only appears at the end of the table, NOT repeated on every page */
+  table tfoot {
+    display: table-row-group !important;
+  }
+
+  /* Prevent awkward page breaks inside table rows */
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group !important;
   }
 
   /* Hide screen-only interactive elements */
@@ -27,6 +56,10 @@
 
   .print\:block {
     display: block !important;
+  }
+
+  .print\:flex {
+    display: flex !important;
   }
 
   /* Table borders and padding for clean print */

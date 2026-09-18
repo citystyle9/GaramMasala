@@ -10,7 +10,8 @@ import {
   ArrowUpDown,
   Flame,
   Info,
-  Bookmark
+  Bookmark,
+  X
 } from 'lucide-react';
 import { SpiceItem, RecipeTemplate } from './types';
 import { INITIAL_GARAM_MASALA_SPICES } from './defaultSpices';
@@ -72,6 +73,7 @@ export default function App() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [copiedMessage, setCopiedMessage] = useState(false);
+  const [showGuidanceModal, setShowGuidanceModal] = useState(false);
 
   // Active template name currently loaded
   const [activeTemplateName, setActiveTemplateName] = useState<string | null>(() => {
@@ -276,7 +278,7 @@ export default function App() {
 
   // Reset all values to zero and empty
   const handleResetToDefault = () => {
-    if (window.confirm('کیا آپ تمام مصالحوں کی مقداریں (گرام اور گھریلو پیمائش) صفر (0) کرنا چاہتے ہیں؟')) {
+    if (window.confirm('کیا آپ تمام مصالحوں کی مقداریں (گرام اور گھریلو پیمائش) صفر (0) کر کے فارم ری سیٹ کرنا چاہتے ہیں؟')) {
       setSpices((prev) =>
         prev.map((item) => ({
           ...item,
@@ -310,7 +312,7 @@ export default function App() {
   const handlePrint = () => {
     const originalTitle = document.title;
     if (activeTemplateName) {
-      document.title = `${activeTemplateName} - گرم مصالحہ آرگنائزر`;
+      document.title = activeTemplateName;
     }
     window.print();
     setTimeout(() => {
@@ -320,6 +322,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-stone-900 pb-16 pt-6 px-3 sm:px-6">
+      {/* Dynamic Print Style for Active Template in Page Footer */}
+      <style>{`
+        @media print {
+          @page {
+            @bottom-right {
+              content: "${(activeTemplateName || 'معیاری گرم مصالحہ مکسچر').replace(/"/g, '\\"')}";
+            }
+          }
+        }
+      `}</style>
+
       <div className="max-w-4xl mx-auto">
         
         {/* Top Header Card */}
@@ -349,9 +362,20 @@ export default function App() {
                     </div>
                   )}
                 </div>
-                <p className="text-stone-600 text-sm mt-1 leading-relaxed print:text-xs">
-                  ماؤس سے پکڑ کر اوپر نیچے ترتیب دیں، ہر مصالحے کی مقدار (گرام) درج کریں اور کل اجزاء میں خودکار فی صد تناسب دیکھیں۔
-                </p>
+
+                {/* Guidance Button (صرف رہنمائی کا بٹن، بغیر کسی اضافی تحریر کے) */}
+                <div className="mt-2.5 print:hidden">
+                  <button
+                    id="guidance-toggle-btn"
+                    type="button"
+                    onClick={() => setShowGuidanceModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold transition-colors cursor-pointer shadow-2xs hover:border-amber-300"
+                    title="استعمال کی رہنمائی دیکھیں"
+                  >
+                    <Info className="w-3.5 h-3.5 text-amber-700" />
+                    <span>رہنمائی</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -393,22 +417,22 @@ export default function App() {
                 type="button"
                 onClick={handleResetToDefault}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200 cursor-pointer"
-                title="معیاری ترکیب بحال کریں"
+                title="فارم ری سیٹ کریں (تمام اوزان صفر ہو جائیں گے)"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>بحال کریں</span>
+                <span>ری سیٹ کریں</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-stone-100">
+          {/* Quick Metrics Bar (3 Cards) */}
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mt-6 pt-5 border-t border-stone-100">
             <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80">
               <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
                 <span>کل وزن (Total)</span>
                 <Scale className="w-3.5 h-3.5 text-amber-700" />
               </div>
-              <div className="text-xl font-bold font-mono text-stone-900" dir="ltr">
+              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900" dir="ltr">
                 {totalWeight} <span className="text-xs font-normal text-stone-500 font-sans">گرام</span>
               </div>
             </div>
@@ -418,7 +442,7 @@ export default function App() {
                 <span>کل مصالحے (Items)</span>
                 <Layers className="w-3.5 h-3.5 text-amber-700" />
               </div>
-              <div className="text-xl font-bold font-mono text-stone-900">
+              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900">
                 {spices.length}
               </div>
             </div>
@@ -428,18 +452,8 @@ export default function App() {
                 <span>کل تناسب (Ratio)</span>
                 <Sparkles className="w-3.5 h-3.5 text-amber-700" />
               </div>
-              <div className="text-xl font-bold font-mono text-stone-900" dir="ltr">
+              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900" dir="ltr">
                 {totalWeight > 0 ? '100%' : '0%'}
-              </div>
-            </div>
-
-            <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80 print:hidden">
-              <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
-                <span>ترتیب کا طریقہ</span>
-                <ArrowUpDown className="w-3.5 h-3.5 text-amber-700" />
-              </div>
-              <div className="text-xs font-medium text-amber-900 mt-1">
-                ماؤس سے پکڑ کر گھسیٹیں
               </div>
             </div>
           </div>
@@ -483,14 +497,6 @@ export default function App() {
             </div>
           )}
         </header>
-
-        {/* Drag Instruction Banner */}
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50/80 border border-amber-200 text-amber-900 rounded-xl text-xs mb-4 print:hidden">
-          <Info className="w-4 h-4 shrink-0 text-amber-700" />
-          <span>
-            <strong>رہنمائی:</strong> کسی بھی مصالحے کو اوپر یا نیچے کرنے کے لیے بائیں جانب بنے ہینڈل (⋮⋮) کو ماؤس سے پکڑ کر اوپر یا نیچے ڈریگ کریں۔ آپ تیر والے بٹن سے بھی ترتیب بدل سکتے ہیں۔
-          </span>
-        </div>
 
         {/* Main Table Card */}
         <main className="bg-white border border-stone-200 rounded-2xl shadow-xs overflow-hidden">
@@ -579,6 +585,93 @@ export default function App() {
         <section aria-label="نیا مصالحہ شامل کرنے کا فارم" className="print:hidden">
           <AddSpiceForm onAddSpice={handleAddSpice} />
         </section>
+
+        {/* Guidance Information Modal (رہنمائی ڈائیلاگ) */}
+        {showGuidanceModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-xs animate-in fade-in duration-150 print:hidden"
+            onClick={() => setShowGuidanceModal(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="guidance-modal-title"
+          >
+            <div
+              className="bg-white rounded-2xl border border-stone-200 shadow-xl max-w-lg w-full p-6 text-right overflow-hidden relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-stone-100 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200">
+                    <Info className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 id="guidance-modal-title" className="text-base sm:text-lg font-bold text-stone-900">
+                      گرم مصالحہ آرگنائزر کے استعمال کی رہنمائی
+                    </h2>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      آسان طریقہ کار اور ضروری ہدایات
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGuidanceModal(false)}
+                  className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                  title="بند کریں"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Points */}
+              <div className="space-y-3 text-xs sm:text-sm text-stone-700 leading-relaxed">
+                <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 flex items-start gap-3">
+                  <ArrowUpDown className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-stone-900 font-semibold mb-0.5">ترتیب بدلنے کا طریقہ:</strong>
+                    کسی بھی مصالحے کو اوپر یا نیچے کرنے کے لیے بائیں جانب بنے ہینڈل (⋮⋮) کو ماؤس سے پکڑ کر اوپر یا نیچے گھسیٹیں (Drag & Drop)۔ اس کے علاوہ آپ تیر والے بٹن (▲/▼) پر کلک کر کے بھی ترتیب تبدیل کر سکتے ہیں۔
+                  </div>
+                </div>
+
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/80 flex items-start gap-3">
+                  <Scale className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-stone-900 font-semibold mb-0.5">مقدار درج کرنا اور خودکار فی صد تناسب:</strong>
+                    ہر مصالحے کے سامنے گرام میں مقدار درج کریں۔ کل اجزاء کے حساب سے ہر مصالحے کا خودکار فی صد تناسب فوراً کیلکولیٹ ہو جائے گا۔
+                  </div>
+                </div>
+
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/80 flex items-start gap-3">
+                  <Layers className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-stone-900 font-semibold mb-0.5">گھریلو پیمائش (چمچ / کپ / عدد):</strong>
+                    اپنی سہولت کے لیے چمچ، کپ یا عدد میں گھریلو مقدار منتخب کر سکتے ہیں، یا چاہیں تو اسے خالی (—) بھی رکھ سکتے ہیں۔
+                  </div>
+                </div>
+
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/80 flex items-start gap-3">
+                  <Bookmark className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-stone-900 font-semibold mb-0.5">ٹیمپلیٹس اور پرنٹ:</strong>
+                    اپنی تیار کردہ ترکیب کو نیا نام دے کر "ٹیمپلیٹ محفوظ کریں" سے محفوظ کر سکتے ہیں اور "پرنٹ" بٹن سے صاف ستھری پی ڈی ایف حاصل کر سکتے ہیں جس کے فوٹر پر فعال نسخے کا نام خود بخود درج ہوگا۔
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="mt-5 pt-3 border-t border-stone-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowGuidanceModal(false)}
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs"
+                >
+                  سمجھ آ گئی / بند کریں
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

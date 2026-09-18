@@ -14,10 +14,11 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
+    /* Template name at bottom right is set dynamically via App.tsx for active template */
     @bottom-right {
-      content: "گرم مصالحہ آرگنائزر (Garam Masala Organizer)";
-      font-size: 8pt;
-      color: #a8a29e;
+      font-size: 8.5pt;
+      color: #78716c;
+      font-family: inherit;
     }
   }
 

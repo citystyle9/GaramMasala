@@ -8,7 +8,6 @@ import {
   Copy, 
   Printer, 
   ArrowUpDown,
-  Flame,
   Info,
   Bookmark,
   X
@@ -336,51 +335,34 @@ export default function App() {
       <div className="max-w-4xl mx-auto">
         
         {/* Top Header Card */}
-        <header className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-7 shadow-xs mb-6 print:border-b print:border-stone-300 print:rounded-none print:shadow-none print:p-2 print:mb-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0 shadow-xs border border-amber-200 print:hidden">
-                <Flame className="w-6 h-6" />
+        <header className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-6 shadow-xs mb-6 print:border-b print:border-stone-300 print:rounded-none print:shadow-none print:p-2 print:mb-4">
+          <div className="flex flex-col items-center text-center gap-4">
+            
+            {/* 1. Main Title (Centered) */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-2.5">
+                  <span>مصالحہ آرگنائزر</span>
+                  <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans print:hidden" dir="ltr">
+                    Spice Organizer
+                  </span>
+                </h1>
               </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
-                    <span>گرم مصالحہ آرگنائزر</span>
-                    <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans print:hidden" dir="ltr">
-                      Spice Organizer
-                    </span>
-                  </h1>
 
-                  {/* Active Template Badge (Visible on screen and prominently on print) */}
-                  {activeTemplateName && (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 text-xs font-semibold shadow-2xs">
-                      <Bookmark className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                      <span>ٹیمپلیٹ نسخہ:</span>
-                      <span className="font-bold text-amber-900 underline decoration-amber-400 underline-offset-2">
-                        {activeTemplateName}
-                      </span>
-                    </div>
-                  )}
+              {/* 2. Active Template Badge (Centered) */}
+              {activeTemplateName && (
+                <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 text-xs font-medium shadow-2xs mt-0.5">
+                  <Bookmark className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span className="text-stone-700 font-semibold">ٹیمپلیٹ (Template):</span>
+                  <span className="font-bold text-amber-900 underline decoration-amber-400 underline-offset-2">
+                    {activeTemplateName}
+                  </span>
                 </div>
-
-                {/* Guidance Button (صرف رہنمائی کا بٹن، بغیر کسی اضافی تحریر کے) */}
-                <div className="mt-2.5 print:hidden">
-                  <button
-                    id="guidance-toggle-btn"
-                    type="button"
-                    onClick={() => setShowGuidanceModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold transition-colors cursor-pointer shadow-2xs hover:border-amber-300"
-                    title="استعمال کی رہنمائی دیکھیں"
-                  >
-                    <Info className="w-3.5 h-3.5 text-amber-700" />
-                    <span>رہنمائی</span>
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Quick Action Buttons */}
-            <div className="flex items-center gap-2 self-end md:self-center flex-wrap sm:flex-nowrap print:hidden">
+            {/* 3. Action Buttons Row (Centered) */}
+            <div className="flex items-center justify-center gap-2 flex-wrap print:hidden pt-1 w-full">
               <TemplateManager
                 currentSpices={spices}
                 templates={templates}
@@ -390,70 +372,102 @@ export default function App() {
                 onDeleteTemplate={handleDeleteTemplate}
               />
 
+              {/* Copy Button */}
               <button
                 id="copy-recipe-btn"
                 type="button"
                 onClick={handleCopySummary}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg transition-colors border border-stone-200 cursor-pointer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-all border border-stone-200 cursor-pointer text-right min-w-[84px]"
                 title="فہرست کاپی کریں"
               >
-                {copiedMessage ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedMessage ? 'کاپی ہو گیا!' : 'کاپی کریں'}</span>
+                {copiedMessage ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <Copy className="w-4 h-4 text-stone-600 shrink-0" />}
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-xs font-bold text-stone-800">{copiedMessage ? 'کاپی ہو گیا!' : 'کاپی کریں'}</span>
+                  <span className="text-[10px] text-stone-500 font-sans" dir="ltr">{copiedMessage ? 'Copied!' : 'Copy'}</span>
+                </div>
               </button>
 
+              {/* Print Button */}
               <button
                 id="print-recipe-btn"
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg transition-colors border border-stone-200 cursor-pointer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-all border border-stone-200 cursor-pointer text-right min-w-[80px]"
                 title="پرنٹ کریں"
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>پرنٹ</span>
+                <Printer className="w-4 h-4 text-stone-600 shrink-0" />
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-xs font-bold text-stone-800">پرنٹ</span>
+                  <span className="text-[10px] text-stone-500 font-sans" dir="ltr">Print</span>
+                </div>
               </button>
 
+              {/* Reset Button */}
               <button
                 id="reset-spices-btn"
                 type="button"
                 onClick={handleResetToDefault}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200 cursor-pointer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-950 rounded-lg transition-all border border-amber-200 cursor-pointer text-right min-w-[90px]"
                 title="فارم ری سیٹ کریں (تمام اوزان صفر ہو جائیں گے)"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>ری سیٹ کریں</span>
+                <RotateCcw className="w-4 h-4 text-amber-700 shrink-0" />
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-xs font-bold text-amber-900">ری سیٹ کریں</span>
+                  <span className="text-[10px] text-amber-700/80 font-sans" dir="ltr">Reset</span>
+                </div>
+              </button>
+
+              {/* Guidance Button - Placed at the end next to Reset button */}
+              <button
+                id="guidance-toggle-btn"
+                type="button"
+                onClick={() => setShowGuidanceModal(true)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-stone-100 hover:bg-amber-50 text-stone-800 hover:text-amber-900 rounded-lg transition-all border border-stone-200 hover:border-amber-300 cursor-pointer text-right min-w-[80px]"
+                title="استعمال کی رہنمائی دیکھیں"
+              >
+                <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-xs font-bold text-stone-800">رہنمائی</span>
+                  <span className="text-[10px] text-stone-500 font-sans" dir="ltr">Guide</span>
+                </div>
               </button>
             </div>
           </div>
 
-          {/* Quick Metrics Bar (3 Cards) */}
+          {/* Quick Metrics Bar (3 Cards: 1. Total Items, 2. Total Weight, 3. Total Ratio) */}
           <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mt-6 pt-5 border-t border-stone-100">
-            <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80">
-              <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
-                <span>کل وزن (Total)</span>
-                <Scale className="w-3.5 h-3.5 text-amber-700" />
-              </div>
-              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900" dir="ltr">
-                {totalWeight} <span className="text-xs font-normal text-stone-500 font-sans">گرام</span>
-              </div>
-            </div>
-
-            <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80">
-              <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
-                <span>کل مصالحے (Items)</span>
+            {/* 1. کل مصالحے (Total Items) */}
+            <div className="bg-stone-50 rounded-xl p-3.5 border border-stone-200/80 text-center">
+              <div className="flex items-center justify-center gap-1.5 text-xs text-stone-500 mb-1.5">
                 <Layers className="w-3.5 h-3.5 text-amber-700" />
+                <span>کل مصالحے (Total Items)</span>
               </div>
-              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900">
-                {spices.length}
+              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900 flex items-baseline justify-center gap-1">
+                <span dir="ltr">{spices.length}</span>
+                <span className="text-xs font-normal text-stone-500 font-sans">اجزاء</span>
               </div>
             </div>
 
-            <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80">
-              <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
-                <span>کل تناسب (Ratio)</span>
-                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+            {/* 2. کل وزن (Total Weight) */}
+            <div className="bg-stone-50 rounded-xl p-3.5 border border-stone-200/80 text-center">
+              <div className="flex items-center justify-center gap-1.5 text-xs text-stone-500 mb-1.5">
+                <Scale className="w-3.5 h-3.5 text-amber-700" />
+                <span>کل وزن (Total Weight)</span>
               </div>
-              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900" dir="ltr">
-                {totalWeight > 0 ? '100%' : '0%'}
+              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900 flex items-baseline justify-center gap-1">
+                <span dir="ltr">{totalWeight}</span>
+                <span className="text-xs font-normal text-stone-500 font-sans">گرام</span>
+              </div>
+            </div>
+
+            {/* 3. کل تناسب (Total Ratio) */}
+            <div className="bg-stone-50 rounded-xl p-3.5 border border-stone-200/80 text-center">
+              <div className="flex items-center justify-center gap-1.5 text-xs text-stone-500 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                <span>کل تناسب (Total Ratio)</span>
+              </div>
+              <div className="text-lg sm:text-xl font-bold font-mono text-stone-900 flex items-baseline justify-center">
+                <span dir="ltr">{totalWeight > 0 ? '100%' : '0%'}</span>
               </div>
             </div>
           </div>
@@ -503,24 +517,42 @@ export default function App() {
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="bg-stone-100/90 text-stone-700 text-xs font-bold border-b border-stone-200 uppercase tracking-wider">
-                  <th scope="col" className="py-3.5 px-3 sm:px-4 text-center w-28">
-                    ترتیب و نمبر
+                <tr className="bg-stone-100/90 text-stone-700 text-xs font-bold border-b border-stone-200">
+                  <th scope="col" className="py-3 px-3 sm:px-4 text-center w-28">
+                    <div className="flex flex-col items-center">
+                      <span>ترتیب و نمبر</span>
+                      <span className="text-[10px] font-normal text-stone-500 font-sans" dir="ltr">Order / No.</span>
+                    </div>
                   </th>
-                  <th scope="col" className="py-3.5 px-4">
-                    مصالحہ کا نام
+                  <th scope="col" className="py-3 px-4">
+                    <div className="flex flex-col items-start">
+                      <span>مصالحہ کا نام</span>
+                      <span className="text-[10px] font-normal text-stone-500 font-sans" dir="ltr">Spice Name</span>
+                    </div>
                   </th>
-                  <th scope="col" className="py-3.5 px-4 text-center w-36">
-                    مقدار (گرام میں)
+                  <th scope="col" className="py-3 px-4 text-center w-36">
+                    <div className="flex flex-col items-center">
+                      <span>مقدار (گرام میں)</span>
+                      <span className="text-[10px] font-normal text-stone-500 font-sans" dir="ltr">Weight (Grams)</span>
+                    </div>
                   </th>
-                  <th scope="col" className="py-3.5 px-3 text-right min-w-[170px]">
-                    گھریلو مقدار (کپ / چمچ / عدد)
+                  <th scope="col" className="py-3 px-3 text-right min-w-[170px]">
+                    <div className="flex flex-col items-start">
+                      <span>گھریلو مقدار (کپ / چمچ / عدد)</span>
+                      <span className="text-[10px] font-normal text-stone-500 font-sans" dir="ltr">Measure (Cup/Spoon/Pcs)</span>
+                    </div>
                   </th>
-                  <th scope="col" className="py-3.5 px-4 text-center w-44">
-                    خودکار فی صد تناسب (%)
+                  <th scope="col" className="py-3 px-4 text-center w-44">
+                    <div className="flex flex-col items-center">
+                      <span>خودکار فی صد تناسب (%)</span>
+                      <span className="text-[10px] font-normal text-stone-500 font-sans" dir="ltr">Auto Ratio (%)</span>
+                    </div>
                   </th>
-                  <th scope="col" className="py-3.5 px-3 text-center w-14 print:hidden">
-                    حذف
+                  <th scope="col" className="py-3 px-3 text-center w-14 print:hidden">
+                    <div className="flex flex-col items-center">
+                      <span>حذف</span>
+                      <span className="text-[10px] font-normal text-stone-500 font-sans" dir="ltr">Delete</span>
+                    </div>
                   </th>
                 </tr>
               </thead>
@@ -557,20 +589,29 @@ export default function App() {
               </tbody>
               {spices.length > 0 && (
                 <tfoot>
-                  <tr className="bg-stone-100/80 font-bold text-stone-900 border-t-2 border-stone-200">
-                    <td className="py-3.5 px-4 text-center text-xs text-stone-500">
-                      ٹوٹل
+                  <tr className="bg-stone-100/90 font-bold text-stone-900 border-t-2 border-stone-300">
+                    <td className="py-3 px-3 sm:px-4 text-center">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs text-stone-700">ٹوٹل</span>
+                        <span className="text-[10px] font-normal text-stone-400 font-sans" dir="ltr">Total</span>
+                      </div>
                     </td>
                     <td className="py-3.5 px-4 text-sm">
-                      مجموعی گرم مصالحہ مکسچر ({spices.length} اجزاء)
+                      <div className="flex items-baseline gap-1 font-mono text-base font-bold text-stone-900">
+                        <span dir="ltr">{spices.length}</span>
+                        <span className="text-xs font-normal text-stone-500 font-sans">اجزاء</span>
+                      </div>
                     </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-base" dir="ltr">
-                      {totalWeight} <span className="text-xs font-normal text-stone-500 font-sans">گرام</span>
+                    <td className="py-3.5 px-4 text-center" dir="ltr">
+                      <div className="flex items-baseline justify-center gap-1 font-mono text-base font-bold text-stone-900">
+                        <span className="text-xs font-normal text-stone-500 font-sans">گرام</span>
+                        <span>{totalWeight}</span>
+                      </div>
                     </td>
-                    <td className="py-3.5 px-3 text-right text-xs text-stone-500 font-normal">
-                      گھریلو استعمال کا تناسب
+                    <td className="py-3.5 px-3 text-right">
+                      {/* Empty: گھریلو استعمال کا تناسب والی غیر ضروری تحریر ہٹا دی گئی ہے */}
                     </td>
-                    <td className="py-3.5 px-4 text-center font-mono text-base text-amber-900">
+                    <td className="py-3.5 px-4 text-center font-mono text-base text-amber-900 font-bold" dir="ltr">
                       {totalWeight > 0 ? '100.0%' : '0.0%'}
                     </td>
                     <td className="py-3.5 px-3 print:hidden"></td>

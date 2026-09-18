@@ -59,16 +59,21 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
         id="open-templates-btn"
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors shadow-xs cursor-pointer"
+        className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-all shadow-xs cursor-pointer text-right"
         title="ٹیمپلیٹ محفوظ کریں یا محفوظ شدہ نسخہ لوڈ کریں"
       >
-        <Bookmark className="w-3.5 h-3.5" />
-        <span>ٹیمپلیٹس (Templates)</span>
-        {templates.length > 0 && (
-          <span className="bg-amber-800 text-amber-100 text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">
-            {templates.length}
-          </span>
-        )}
+        <Bookmark className="w-4 h-4 shrink-0 text-amber-200" />
+        <div className="flex flex-col items-start leading-tight">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold">ٹیمپلیٹس</span>
+            {templates.length > 0 && (
+              <span className="bg-amber-800/90 text-amber-100 text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">
+                {templates.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-amber-200 font-sans tracking-wide" dir="ltr">Templates</span>
+        </div>
       </button>
 
       {/* Popover / Modal Dropdown */}

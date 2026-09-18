@@ -154,10 +154,13 @@ export const AddSpiceForm: React.FC<AddSpiceFormProps> = ({ onAddSpice }) => {
           id="submit-add-spice"
           type="submit"
           disabled={!name.trim()}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors shadow-xs cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white rounded-lg transition-all shadow-xs cursor-pointer text-right min-w-[100px]"
         >
-          <Plus className="w-4 h-4" />
-          <span>شامل کریں</span>
+          <Plus className="w-4 h-4 shrink-0" />
+          <div className="flex flex-col items-start leading-tight">
+            <span className="text-xs font-bold">شامل کریں</span>
+            <span className="text-[10px] text-amber-200 font-sans" dir="ltr">Add Spice</span>
+          </div>
         </button>
       </form>
 

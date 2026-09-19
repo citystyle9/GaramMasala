@@ -1,28 +1,52 @@
+/**
+ * @file SpiceRow.tsx
+ * @description جدول کی انفرادی قطار برائے مصالحہ، ڈریگ اینڈ ڈراپ، اوزان اور گھریلو مقدار
+ * Interactive table row component representing a single spice item.
+ * Supports drag-and-drop reordering, inline editing of names, weight adjustments,
+ * and optional household measurement overrides.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { GripVertical, ChevronUp, ChevronDown, Trash2, Edit3, Check, X } from 'lucide-react';
 import { SpiceItem } from '../types';
 
-interface SpiceRowProps {
+export interface SpiceRowProps {
+  /** مصالحے کا ڈیٹا آبجیکٹ */
   spice: SpiceItem;
+  /** فہرست میں انڈیکس پوزیشن */
   index: number;
+  /** کل مصالحوں کی تعداد */
   totalSpices: number;
+  /** مجموعی وزن گرام میں */
   totalWeight: number;
+  /** وزن تبدیل کرنے کا کال بیک فنکشن */
   onWeightChange: (id: string, newWeight: number) => void;
+  /** نام تبدیل کرنے کا کال بیک فنکشن */
   onNameChange: (id: string, newName: string, newEnglishName?: string) => void;
+  /** گھریلو پیمائش تبدیل کرنے کا کال بیک فنکشن */
   onHouseholdMeasureChange: (
     id: string,
     amount: string,
     unit: string,
     fullMeasure: string
   ) => void;
+  /** مصالحہ حذف کرنے کا کال بیک فنکشن */
   onDelete: (id: string) => void;
+  /** قطار کو اوپر منتقل کرنے کا فنکشن */
   onMoveUp: (index: number) => void;
+  /** قطار کو نیچے منتقل کرنے کا فنکشن */
   onMoveDown: (index: number) => void;
+  /** ڈریگ شروع ہونے کا ایونٹ ہینڈلر */
   onDragStart: (e: React.DragEvent<HTMLTableRowElement>, index: number) => void;
+  /** ڈریگ اوپر آنے کا ایونٹ ہینڈلر */
   onDragOver: (e: React.DragEvent<HTMLTableRowElement>, index: number) => void;
+  /** ڈریگ چھوڑنے کا ایونٹ ہینڈلر */
   onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  /** ڈراپ مکمل ہونے کا ایونٹ ہینڈلر */
   onDrop: (e: React.DragEvent<HTMLTableRowElement>, index: number) => void;
+  /** کیا یہ قطار اس وقت ڈریگ ہو رہی ہے؟ */
   isDragging: boolean;
+  /** کیا ڈریگ شدہ قطار اس کے اوپر موجود ہے؟ */
   isDragOver: boolean;
 }
 

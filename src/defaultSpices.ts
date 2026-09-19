@@ -1,3 +1,10 @@
+/**
+ * @file defaultSpices.ts
+ * @description معیاری اور روایتی مصالحہ جات کی ابتدائی ڈیفالٹ فہرست (14 اجزاء)
+ * Baseline list of 14 traditional spice items used as the starting canvas.
+ * Weights are initialized to 0 to encourage user-driven customization.
+ */
+
 import { SpiceItem } from './types';
 
 export const INITIAL_GARAM_MASALA_SPICES: SpiceItem[] = [

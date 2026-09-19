@@ -1,3 +1,11 @@
+/**
+ * @file App.tsx
+ * @description مرکزی ایپلیکیشن کمپونینٹ برائے مصالحہ آرگنائزر
+ * Main application component for Spice Organizer.
+ * Coordinates local state, drag-and-drop reordering, ratio calculations,
+ * localStorage persistence, print styling, and recipe template management.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
@@ -77,9 +85,9 @@ export default function App() {
   // Active template name currently loaded
   const [activeTemplateName, setActiveTemplateName] = useState<string | null>(() => {
     try {
-      return localStorage.getItem(ACTIVE_TEMPLATE_STORAGE_KEY) || 'معیاری گرم مصالحہ مکسچر';
+      return localStorage.getItem(ACTIVE_TEMPLATE_STORAGE_KEY) || 'معیاری مصالحہ مکسچر';
     } catch {
-      return 'معیاری گرم مصالحہ مکسچر';
+      return 'معیاری مصالحہ مکسچر';
     }
   });
 
@@ -293,7 +301,7 @@ export default function App() {
   // Copy recipe summary
   const handleCopySummary = () => {
     const textLines = [
-      '--- گرم مصالحہ نسخہ و تناسب (Garam Masala Recipe & Ratio) ---',
+      '--- مصالحہ نسخہ و تناسب (Spice Recipe & Ratio) ---',
       `کل وزن: ${totalWeight} گرام | کل اجزاء: ${spices.length}`,
       '-------------------------------------------------------',
       ...spices.map((s, idx) => {
@@ -326,7 +334,7 @@ export default function App() {
         @media print {
           @page {
             @bottom-right {
-              content: "${(activeTemplateName || 'معیاری گرم مصالحہ مکسچر').replace(/"/g, '\\"')}";
+              content: "${(activeTemplateName || 'معیاری مصالحہ مکسچر').replace(/"/g, '\\"')}";
             }
           }
         }
@@ -364,7 +372,6 @@ export default function App() {
             {/* 3. Action Buttons Row (Centered) */}
             <div className="flex items-center justify-center gap-2 flex-wrap print:hidden pt-1 w-full">
               <TemplateManager
-                currentSpices={spices}
                 templates={templates}
                 activeTemplateName={activeTemplateName}
                 onSaveTemplate={handleSaveTemplate}
@@ -608,9 +615,7 @@ export default function App() {
                         <span>{totalWeight}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-3 text-right">
-                      {/* Empty: گھریلو استعمال کا تناسب والی غیر ضروری تحریر ہٹا دی گئی ہے */}
-                    </td>
+                    <td className="py-3.5 px-3 text-right" aria-hidden="true"></td>
                     <td className="py-3.5 px-4 text-center font-mono text-base text-amber-900 font-bold" dir="ltr">
                       {totalWeight > 0 ? '100.0%' : '0.0%'}
                     </td>
@@ -648,7 +653,7 @@ export default function App() {
                   </div>
                   <div>
                     <h2 id="guidance-modal-title" className="text-base sm:text-lg font-bold text-stone-900">
-                      گرم مصالحہ آرگنائزر کے استعمال کی رہنمائی
+                      مصالحہ آرگنائزر کے استعمال کی رہنمائی
                     </h2>
                     <p className="text-xs text-stone-500 mt-0.5">
                       آسان طریقہ کار اور ضروری ہدایات

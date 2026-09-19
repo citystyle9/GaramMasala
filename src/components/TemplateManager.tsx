@@ -1,18 +1,28 @@
+/**
+ * @file TemplateManager.tsx
+ * @description مصالحہ نسخوں کے ٹیمپلیٹس مینیجر (محفوظ کرنا، لوڈ کرنا، اور حذف کرنا)
+ * Component managing saved spice recipe templates in localStorage.
+ * Allows users to persist current formulations with custom names and reload them on demand.
+ */
+
 import React, { useState } from 'react';
 import { Bookmark, FolderOpen, Plus, Trash2, Check, X, Clock } from 'lucide-react';
-import { SpiceItem, RecipeTemplate } from '../types';
+import { RecipeTemplate } from '../types';
 
-interface TemplateManagerProps {
-  currentSpices: SpiceItem[];
+export interface TemplateManagerProps {
+  /** محفوظ شدہ تمام ٹیمپلیٹس کی فہرست */
   templates: RecipeTemplate[];
+  /** اس وقت فعال ٹیمپلیٹ کا نام (اختیاری) */
   activeTemplateName?: string | null;
+  /** نیا ٹیمپلیٹ محفوظ کرنے کا کال بیک فنکشن */
   onSaveTemplate: (name: string) => void;
+  /** منتخب ٹیمپلیٹ لوڈ کرنے کا کال بیک فنکشن */
   onLoadTemplate: (template: RecipeTemplate) => void;
+  /** ٹیمپلیٹ حذف کرنے کا کال بیک فنکشن */
   onDeleteTemplate: (id: string) => void;
 }
 
 export const TemplateManager: React.FC<TemplateManagerProps> = ({
-  currentSpices,
   templates,
   activeTemplateName,
   onSaveTemplate,
@@ -108,7 +118,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                 type="button"
                 onClick={() => {
                   setIsSaving(true);
-                  setTemplateName(`گرم مصالحہ نسخہ ${templates.length + 1}`);
+                  setTemplateName(`مصالحہ نسخہ ${templates.length + 1}`);
                 }}
                 className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               >

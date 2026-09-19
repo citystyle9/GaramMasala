@@ -1,8 +1,16 @@
+/**
+ * @file AddSpiceForm.tsx
+ * @description نیا مصالحہ اور اختیاری پیمائش شامل کرنے کا فارم مع عام مصالحہ جات کی تجاویز
+ * Component form allowing users to append new custom spices to the table,
+ * along with optional English transliterations, weight, and household units.
+ */
+
 import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { SpiceItem } from '../types';
 
-interface AddSpiceFormProps {
+export interface AddSpiceFormProps {
+  /** نیا مصالحہ شامل کرنے کا ایونٹ ہینڈلر */
   onAddSpice: (spice: Omit<SpiceItem, 'id'>) => void;
 }
 

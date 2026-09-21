@@ -6,7 +6,7 @@
  * localStorage persistence, print styling, and recipe template management.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Sparkles, 
   RotateCcw, 
@@ -21,7 +21,8 @@ import {
   X,
   Cloud,
   CloudOff,
-  RefreshCw
+  RefreshCw,
+  Check
 } from 'lucide-react';
 import { 
   saveSharedRecipeState, 
@@ -47,6 +48,9 @@ export default function App() {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [justSaved, setJustSaved] = useState<boolean>(false);
+  const isFirstMount = useRef<boolean>(true);
+  const lastSyncedSignature = useRef<string>('');
 
   const [spices, setSpices] = useState<SpiceItem[]>(() => {
     try {
@@ -197,6 +201,10 @@ export default function App() {
     // A. Subscribe to Shared Active Recipe State
     const unsubRecipe = subscribeSharedRecipeState((cloudData) => {
       if (cloudData && Array.isArray(cloudData.spices) && cloudData.spices.length > 0) {
+        lastSyncedSignature.current = JSON.stringify({
+          spices: cloudData.spices,
+          templateName: cloudData.activeTemplateName || '',
+        });
         setSpices(cloudData.spices);
         if (cloudData.activeTemplateName && cloudData.activeTemplateName !== 'معیاری مصالحہ مکسچر') {
           setActiveTemplateName(cloudData.activeTemplateName);
@@ -229,18 +237,41 @@ export default function App() {
   }, []);
 
   // 3. Debounced Auto-Sync to Shared Cloud Firestore (Local -> Cloud Sync)
+  // Only triggers when the user ACTUALLY makes a modification (spices, weights, reorder, or template)
   useEffect(() => {
+    const currentSignature = JSON.stringify({
+      spices,
+      templateName: currentTemplateName,
+    });
+
+    // Skip initial load
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      lastSyncedSignature.current = currentSignature;
+      return;
+    }
+
+    // If nothing changed from last sync, do not trigger sync
+    if (currentSignature === lastSyncedSignature.current) {
+      return;
+    }
+
     setIsSyncing(true);
+    setJustSaved(false);
+
     const timer = setTimeout(() => {
       saveSharedRecipeState(spices, currentTemplateName)
         .then(() => {
+          lastSyncedSignature.current = currentSignature;
           setIsSyncing(false);
+          setJustSaved(true);
+          setTimeout(() => setJustSaved(false), 2000);
         })
         .catch((err) => {
           console.warn('Auto shared cloud sync notice:', err);
           setIsSyncing(false);
         });
-    }, 600);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [spices, currentTemplateName]);
@@ -503,27 +534,48 @@ export default function App() {
           <div className="sm:absolute sm:left-5 sm:top-5 mb-3 sm:mb-0 print:hidden flex justify-center">
             <div 
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors w-[155px] justify-center select-none ${
-                isOnline
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : 'bg-amber-50 text-amber-800 border-amber-200'
+                !isOnline
+                  ? 'bg-rose-50 text-rose-800 border-rose-200'
+                  : isSyncing
+                  ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-xs'
+                  : justSaved
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : 'bg-stone-50/90 text-stone-700 border-stone-200'
               }`}
               title={
-                isOnline
-                  ? (isSyncing ? 'کلاؤڈ پر سنک ہو رہا ہے...' : 'کلاؤڈ سنک فعال: تمام ڈیوائسز پر یہی ڈیٹا خود بخود لائیو سنک ہے')
-                  : 'آف لائن کیش موڈ (انٹرنیٹ بحال ہوتے ہی ڈیٹا خود بخود کلاؤڈ پر سنک ہو جائے گا)'
+                !isOnline
+                  ? 'آف لائن کیش موڈ (انٹرنیٹ بند ہے، ڈیٹا لوکل محفوظ ہے)'
+                  : isSyncing
+                  ? 'کلاؤڈ پر تبدیلی محفوظ کی جا رہی ہے...'
+                  : justSaved
+                  ? 'تبدیلی کلاؤڈ پر محفوظ ہو چکی ہے'
+                  : 'کلاؤڈ فعال: تمام ڈیٹا محفوظ ہے'
               }
             >
-              {isOnline ? (
+              {!isOnline ? (
                 <>
-                  <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'} shrink-0`} />
-                  <span className="truncate">{isSyncing ? 'سنک ہو رہا ہے...' : 'کلاؤڈ لائیو سنک'}</span>
-                  <Cloud className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                  <span className="truncate">آف لائن (انٹرنیٹ بند)</span>
+                  <CloudOff className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                </>
+              ) : isSyncing ? (
+                <>
+                  <span className="w-2 h-2 rounded-full border-2 border-amber-600 border-t-transparent animate-spin shrink-0" />
+                  <span className="truncate font-semibold text-amber-900">محفوظ ہو رہا ہے...</span>
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-600 animate-spin shrink-0" />
+                </>
+              ) : justSaved ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
+                  <span className="truncate font-medium text-emerald-800">محفوظ ہو گیا ✓</span>
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 </>
               ) : (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  <span className="truncate">آف لائن موڈ</span>
-                  <CloudOff className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  {/* Stable, calm, solid green dot - NO pulsing or blinking */}
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="truncate text-stone-600">کلاؤڈ محفوظ ہے</span>
+                  <Cloud className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                 </>
               )}
             </div>

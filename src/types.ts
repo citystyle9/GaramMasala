@@ -38,3 +38,15 @@ export interface RecipeTemplate {
   spices: SpiceItem[];
 }
 
+/**
+ * مکمل بیک اپ ڈیٹا ماڈل برائے برآمد اور بحالی (Full Backup Data Model)
+ */
+export interface SpiceBackupData {
+  appName: string;
+  version: string;
+  exportedAt: string;
+  activeTemplateName?: string | null;
+  spices: SpiceItem[];
+  templates: RecipeTemplate[];
+}
+

@@ -43,7 +43,11 @@ export async function saveUserRecipeState(
 
   try {
     await setDoc(docRef, payload);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'unavailable') {
+      console.warn('Offline cache active for recipe state save:', path);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -67,7 +71,11 @@ export function subscribeUserRecipeState(
         onData(null);
       }
     },
-    (error) => {
+    (error: any) => {
+      if (error?.code === 'unavailable') {
+        console.warn('Firestore offline notice for recipe state:', path);
+        return;
+      }
       handleFirestoreError(error, OperationType.GET, path);
     }
   );
@@ -100,7 +108,11 @@ export function subscribeUserTemplates(
       templates.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       onData(templates);
     },
-    (error) => {
+    (error: any) => {
+      if (error?.code === 'unavailable') {
+        console.warn('Firestore offline notice for templates:', path);
+        return;
+      }
       handleFirestoreError(error, OperationType.LIST, path);
     }
   );
@@ -126,7 +138,11 @@ export async function saveTemplateToCloud(
 
   try {
     await setDoc(docRef, payload);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'unavailable') {
+      console.warn('Offline cache active for template save:', path);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -143,7 +159,11 @@ export async function deleteTemplateFromCloud(
 
   try {
     await deleteDoc(docRef);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'unavailable') {
+      console.warn('Offline cache active for template delete:', path);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }

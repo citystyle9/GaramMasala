@@ -6,10 +6,20 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { 
+  getAuth, 
+  signInAnonymously, 
+  onAuthStateChanged, 
+  User, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut 
+} from 'firebase/auth';
+import { 
+  initializeFirestore, 
   getFirestore, 
-  enableMultiTabIndexedDbPersistence, 
+  persistentLocalCache, 
+  persistentMultipleTabManager, 
   doc, 
   getDocFromServer 
 } from 'firebase/firestore';
@@ -18,35 +28,40 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// CRITICAL: Initialize Firestore with the specific databaseId
+// Initialize Firestore with long polling (for iframe/sandbox stability) and multi-tab local cache
+try {
+  initializeFirestore(
+    app,
+    {
+      experimentalForceLongPolling: true,
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    },
+    firebaseConfig.firestoreDatabaseId
+  );
+} catch {
+  // If already initialized, getFirestore will return the existing instance
+}
+
+// CRITICAL: Export db instance bound to the app's specific firestoreDatabaseId
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
 
-// Attempt enabling offline persistence across browser tabs
-if (typeof window !== 'undefined') {
-  try {
-    enableMultiTabIndexedDbPersistence(db).catch((err) => {
-      // In private browsing or unsupported environments, Firestore falls back gracefully
-      console.warn('Firestore offline persistence notice:', err?.message || err);
-    });
-  } catch (err) {
-    console.warn('Firestore persistence init:', err);
-  }
-}
-
-// Test connection on boot as specified in the Firebase integration guidelines
+// Test connection helper as specified in the Firebase integration guidelines
 export async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    if (auth.currentUser) {
+      await getDocFromServer(doc(db, 'test', 'connection'));
+    }
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn('Firestore client is currently offline. Operating in offline cache mode.');
     }
   }
 }
-testConnection();
 
 // Standardized Operation Types
 export enum OperationType {

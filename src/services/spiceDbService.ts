@@ -1,8 +1,8 @@
 /**
  * @file spiceDbService.ts
- * @description کلاؤڈ فائر اسٹور ڈیٹا سروس برائے مصالحہ آرگنائزر
- * Handles synchronization between local state and Cloud Firestore
- * with offline persistence, real-time snapshot listeners, and strict error reporting.
+ * @description کلاؤڈ فائر اسٹور مشترکہ ڈیٹا سروس برائے مصالحہ آرگنائزر
+ * Handles shared live synchronization between devices and Cloud Firestore
+ * without requiring any user authentication, passwords, or separate accounts.
  */
 
 import { 
@@ -16,26 +16,25 @@ import {
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { SpiceItem, RecipeTemplate } from '../types';
 
-export interface UserRecipeStatePayload {
-  userId: string;
+export interface SharedRecipeStatePayload {
   spices: SpiceItem[];
   activeTemplateName?: string;
   updatedAt: string;
 }
 
+const SHARED_RECIPE_DOC = 'recipeState';
+
 /**
- * Save current active formulation to Cloud Firestore
+ * Save current active formulation to Shared Cloud Firestore
  */
-export async function saveUserRecipeState(
-  userId: string, 
+export async function saveSharedRecipeState(
   spices: SpiceItem[], 
   activeTemplateName: string | null
 ): Promise<void> {
-  const path = `users/${userId}/recipeState/current`;
-  const docRef = doc(db, 'users', userId, 'recipeState', 'current');
+  const path = `shared/${SHARED_RECIPE_DOC}`;
+  const docRef = doc(db, 'shared', SHARED_RECIPE_DOC);
   
-  const payload: UserRecipeStatePayload = {
-    userId,
+  const payload: SharedRecipeStatePayload = {
     spices,
     activeTemplateName: activeTemplateName || 'معیاری مصالحہ مکسچر',
     updatedAt: new Date().toISOString(),
@@ -45,7 +44,7 @@ export async function saveUserRecipeState(
     await setDoc(docRef, payload);
   } catch (error: any) {
     if (error?.code === 'unavailable') {
-      console.warn('Offline cache active for recipe state save:', path);
+      console.warn('Offline cache active for shared recipe state save:', path);
       return;
     }
     handleFirestoreError(error, OperationType.WRITE, path);
@@ -53,27 +52,26 @@ export async function saveUserRecipeState(
 }
 
 /**
- * Real-time listener for current active recipe state
+ * Real-time listener for current active shared recipe state
  */
-export function subscribeUserRecipeState(
-  userId: string,
-  onData: (data: UserRecipeStatePayload | null) => void
+export function subscribeSharedRecipeState(
+  onData: (data: SharedRecipeStatePayload | null) => void
 ): Unsubscribe {
-  const path = `users/${userId}/recipeState/current`;
-  const docRef = doc(db, 'users', userId, 'recipeState', 'current');
+  const path = `shared/${SHARED_RECIPE_DOC}`;
+  const docRef = doc(db, 'shared', SHARED_RECIPE_DOC);
 
   return onSnapshot(
     docRef,
     (snapshot) => {
       if (snapshot.exists()) {
-        onData(snapshot.data() as UserRecipeStatePayload);
+        onData(snapshot.data() as SharedRecipeStatePayload);
       } else {
         onData(null);
       }
     },
     (error: any) => {
       if (error?.code === 'unavailable') {
-        console.warn('Firestore offline notice for recipe state:', path);
+        console.warn('Firestore offline notice for shared recipe state:', path);
         return;
       }
       handleFirestoreError(error, OperationType.GET, path);
@@ -82,14 +80,13 @@ export function subscribeUserRecipeState(
 }
 
 /**
- * Real-time listener for user's saved templates collection
+ * Real-time listener for shared saved templates collection
  */
-export function subscribeUserTemplates(
-  userId: string,
+export function subscribeSharedTemplates(
   onData: (templates: RecipeTemplate[]) => void
 ): Unsubscribe {
-  const path = `users/${userId}/templates`;
-  const colRef = collection(db, 'users', userId, 'templates');
+  const path = 'sharedTemplates';
+  const colRef = collection(db, 'sharedTemplates');
 
   return onSnapshot(
     colRef,
@@ -110,7 +107,7 @@ export function subscribeUserTemplates(
     },
     (error: any) => {
       if (error?.code === 'unavailable') {
-        console.warn('Firestore offline notice for templates:', path);
+        console.warn('Firestore offline notice for shared templates:', path);
         return;
       }
       handleFirestoreError(error, OperationType.LIST, path);
@@ -119,18 +116,16 @@ export function subscribeUserTemplates(
 }
 
 /**
- * Save a recipe template to Cloud Firestore
+ * Save a recipe template to Shared Cloud Firestore
  */
-export async function saveTemplateToCloud(
-  userId: string,
+export async function saveSharedTemplate(
   template: RecipeTemplate
 ): Promise<void> {
-  const path = `users/${userId}/templates/${template.id}`;
-  const docRef = doc(db, 'users', userId, 'templates', template.id);
+  const path = `sharedTemplates/${template.id}`;
+  const docRef = doc(db, 'sharedTemplates', template.id);
 
   const payload = {
     id: template.id,
-    userId,
     name: template.name,
     createdAt: template.createdAt,
     spices: template.spices,
@@ -140,7 +135,7 @@ export async function saveTemplateToCloud(
     await setDoc(docRef, payload);
   } catch (error: any) {
     if (error?.code === 'unavailable') {
-      console.warn('Offline cache active for template save:', path);
+      console.warn('Offline cache active for shared template save:', path);
       return;
     }
     handleFirestoreError(error, OperationType.WRITE, path);
@@ -148,22 +143,34 @@ export async function saveTemplateToCloud(
 }
 
 /**
- * Delete a recipe template from Cloud Firestore
+ * Delete a recipe template from Shared Cloud Firestore
  */
-export async function deleteTemplateFromCloud(
-  userId: string,
+export async function deleteSharedTemplate(
   templateId: string
 ): Promise<void> {
-  const path = `users/${userId}/templates/${templateId}`;
-  const docRef = doc(db, 'users', userId, 'templates', templateId);
+  const path = `sharedTemplates/${templateId}`;
+  const docRef = doc(db, 'sharedTemplates', templateId);
 
   try {
     await deleteDoc(docRef);
   } catch (error: any) {
     if (error?.code === 'unavailable') {
-      console.warn('Offline cache active for template delete:', path);
+      console.warn('Offline cache active for shared template delete:', path);
       return;
     }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+// Aliases for backwards compatibility
+export const saveUserRecipeState = (_userId: string, spices: SpiceItem[], activeTemplateName: string | null) => 
+  saveSharedRecipeState(spices, activeTemplateName);
+export const subscribeUserRecipeState = (_userId: string, onData: (data: any) => void) => 
+  subscribeSharedRecipeState(onData);
+export const subscribeUserTemplates = (_userId: string, onData: (templates: RecipeTemplate[]) => void) => 
+  subscribeSharedTemplates(onData);
+export const saveTemplateToCloud = (_userId: string, template: RecipeTemplate) => 
+  saveSharedTemplate(template);
+export const deleteTemplateFromCloud = (_userId: string, templateId: string) => 
+  deleteSharedTemplate(templateId);
+

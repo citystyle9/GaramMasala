@@ -6,15 +6,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -23,54 +14,34 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    function existing() {
-      return resource.data;
-    }
-
-    // Validation blueprint for UserRecipeState
-    function isValidRecipeState(data, userId) {
-      return data.keys().hasAll(['userId', 'spices']) &&
-             data.keys().hasOnly(['userId', 'spices', 'activeTemplateName', 'updatedAt']) &&
-             data.userId == userId &&
-             data.userId == request.auth.uid &&
+    function isValidRecipeState(data) {
+      return data.keys().hasAll(['spices']) &&
              data.spices is list &&
-             data.spices.size() <= 150 &&
+             data.spices.size() <= 200 &&
              (!('activeTemplateName' in data) || (data.activeTemplateName is string && data.activeTemplateName.size() <= 100)) &&
              (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50));
     }
 
-    // Validation blueprint for RecipeTemplate
-    function isValidTemplate(data, userId) {
-      return data.keys().hasAll(['id', 'userId', 'name', 'createdAt', 'spices']) &&
-             data.keys().hasOnly(['id', 'userId', 'name', 'createdAt', 'spices']) &&
+    function isValidTemplate(data) {
+      return data.keys().hasAll(['id', 'name', 'createdAt', 'spices']) &&
              data.id is string && data.id.size() <= 64 &&
-             data.userId == userId &&
-             data.userId == request.auth.uid &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              data.createdAt is string && data.createdAt.size() <= 50 &&
              data.spices is list &&
-             data.spices.size() <= 150;
+             data.spices.size() <= 200;
     }
 
-    // Match /users/{userId}/recipeState/{stateId}
-    match /users/{userId}/recipeState/{stateId} {
-      allow get: if isOwner(userId) && isValidId(stateId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidId(stateId) && isValidRecipeState(incoming(), userId);
-      allow update: if isOwner(userId) && isValidId(stateId) && isValidRecipeState(incoming(), userId) &&
-                    incoming().userId == existing().userId;
-      allow delete: if isOwner(userId) && isValidId(stateId);
+    // Shared active recipe formulation (no login required)
+    match /shared/{docId} {
+      allow read: if isValidId(docId);
+      allow write: if isValidId(docId) && isValidRecipeState(incoming());
     }
 
-    // Match /users/{userId}/templates/{templateId}
-    match /users/{userId}/templates/{templateId} {
-      allow get: if isOwner(userId) && isValidId(templateId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidId(templateId) && isValidTemplate(incoming(), userId) && incoming().id == templateId;
-      allow update: if isOwner(userId) && isValidId(templateId) && isValidTemplate(incoming(), userId) &&
-                    incoming().userId == existing().userId &&
-                    incoming().id == existing().id;
-      allow delete: if isOwner(userId) && isValidId(templateId);
+    // Shared templates collection (no login required)
+    match /sharedTemplates/{templateId} {
+      allow read: if isValidId(templateId);
+      allow write: if isValidId(templateId) && isValidTemplate(incoming()) && incoming().id == templateId;
+      allow delete: if isValidId(templateId);
     }
   }
 }

@@ -23,14 +23,12 @@ import {
   CloudOff,
   RefreshCw
 } from 'lucide-react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, ensureAnonymousAuth, loginWithGoogle, logoutUser } from './firebase';
 import { 
-  saveUserRecipeState, 
-  subscribeUserRecipeState, 
-  subscribeUserTemplates, 
-  saveTemplateToCloud, 
-  deleteTemplateFromCloud 
+  saveSharedRecipeState, 
+  subscribeSharedRecipeState, 
+  subscribeSharedTemplates, 
+  saveSharedTemplate, 
+  deleteSharedTemplate 
 } from './services/spiceDbService';
 import { SpiceItem, RecipeTemplate } from './types';
 import { INITIAL_GARAM_MASALA_SPICES } from './defaultSpices';
@@ -44,8 +42,7 @@ const TEMPLATES_STORAGE_KEY = 'garam_masala_templates_v1';
 const ACTIVE_TEMPLATE_STORAGE_KEY = 'garam_masala_active_template_v1';
 
 export default function App() {
-  // Authentication & Online Network status
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Online Network status & cloud syncing indicator
   const [isOnline, setIsOnline] = useState<boolean>(() => 
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -156,57 +153,39 @@ export default function App() {
     }
   }, [spices]);
 
-  // 1. Initialize Auth and Online/Offline Listeners
+  // 1. Initialize Online/Offline Listeners
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Silently sign in anonymously without any password
-    ensureAnonymousAuth().then((authUser) => {
-      if (authUser) {
-        setCurrentUser(authUser);
-      }
-    });
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (authUser) => {
-      setCurrentUser(authUser);
-    });
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      unsubscribeAuth();
     };
   }, []);
 
-  // 2. Real-time Cloud Subscriptions (Cloud -> Local Sync)
+  // 2. Real-time Shared Cloud Subscriptions (Cloud -> Local Sync across all devices)
   useEffect(() => {
-    if (!currentUser) return;
-
-    // A. Subscribe to User's Active Recipe State
-    const unsubRecipe = subscribeUserRecipeState(currentUser.uid, (cloudData) => {
+    // A. Subscribe to Shared Active Recipe State
+    const unsubRecipe = subscribeSharedRecipeState((cloudData) => {
       if (cloudData && Array.isArray(cloudData.spices) && cloudData.spices.length > 0) {
         setSpices(cloudData.spices);
         if (cloudData.activeTemplateName) {
           setActiveTemplateName(cloudData.activeTemplateName);
         }
       } else {
-        // First-time setup: sync current default spices to cloud
-        saveUserRecipeState(currentUser.uid, spices, activeTemplateName).catch((err) => {
-          console.warn('Initial cloud sync:', err);
+        // First-time setup: sync current spices to shared cloud
+        saveSharedRecipeState(spices, activeTemplateName).catch((err) => {
+          console.warn('Initial shared cloud sync:', err);
         });
       }
     });
 
-    // B. Subscribe to User's Saved Templates
-    const unsubTemplates = subscribeUserTemplates(currentUser.uid, (cloudTemplates) => {
+    // B. Subscribe to Shared Saved Templates
+    const unsubTemplates = subscribeSharedTemplates((cloudTemplates) => {
       if (cloudTemplates && cloudTemplates.length > 0) {
         setTemplates(cloudTemplates);
       }
@@ -216,28 +195,26 @@ export default function App() {
       unsubRecipe();
       unsubTemplates();
     };
-  }, [currentUser]);
+  }, []);
 
-  // 3. Debounced Auto-Sync to Cloud Firestore (Local -> Cloud Sync)
+  // 3. Debounced Auto-Sync to Shared Cloud Firestore (Local -> Cloud Sync)
   useEffect(() => {
-    if (!currentUser) return;
-
     setIsSyncing(true);
     const timer = setTimeout(() => {
-      saveUserRecipeState(currentUser.uid, spices, activeTemplateName)
+      saveSharedRecipeState(spices, activeTemplateName)
         .then(() => {
           setIsSyncing(false);
         })
         .catch((err) => {
-          console.warn('Auto cloud sync notice:', err);
+          console.warn('Auto shared cloud sync notice:', err);
           setIsSyncing(false);
         });
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [spices, activeTemplateName, currentUser]);
+  }, [spices, activeTemplateName]);
 
-  // Save current spices as a new template
+  // Save current spices as a new template (shared to all devices)
   const handleSaveTemplate = (name: string) => {
     const newTemplate: RecipeTemplate = {
       id: `template-${Date.now()}`,
@@ -252,11 +229,9 @@ export default function App() {
     setTemplates((prev) => [newTemplate, ...prev]);
     setActiveTemplateName(name);
 
-    if (currentUser) {
-      saveTemplateToCloud(currentUser.uid, newTemplate).catch((err) => {
-        console.warn('Template cloud save notice:', err);
-      });
-    }
+    saveSharedTemplate(newTemplate).catch((err) => {
+      console.warn('Template cloud save notice:', err);
+    });
   };
 
   // Load a saved template
@@ -265,7 +240,7 @@ export default function App() {
     setActiveTemplateName(template.name);
   };
 
-  // Delete a saved template
+  // Delete a saved template (deleted across all devices)
   const handleDeleteTemplate = (id: string) => {
     const deletedTpl = templates.find((t) => t.id === id);
     if (deletedTpl && activeTemplateName === deletedTpl.name) {
@@ -273,11 +248,9 @@ export default function App() {
     }
     setTemplates((prev) => prev.filter((t) => t.id !== id));
 
-    if (currentUser) {
-      deleteTemplateFromCloud(currentUser.uid, id).catch((err) => {
-        console.warn('Template cloud delete notice:', err);
-      });
-    }
+    deleteSharedTemplate(id).catch((err) => {
+      console.warn('Template cloud delete notice:', err);
+    });
   };
 
   // Handle restoring data from backup file
@@ -300,21 +273,17 @@ export default function App() {
           const existingIds = new Set(prev.map((t) => t.id));
           const newTemplates = data.templates.filter((t) => !existingIds.has(t.id));
           const merged = [...prev, ...newTemplates];
-          if (currentUser) {
-            newTemplates.forEach((t) => saveTemplateToCloud(currentUser.uid, t).catch(console.warn));
-          }
+          newTemplates.forEach((t) => saveSharedTemplate(t).catch(console.warn));
           return merged;
         });
       } else {
         setTemplates(data.templates);
-        if (currentUser) {
-          data.templates.forEach((t) => saveTemplateToCloud(currentUser.uid, t).catch(console.warn));
-        }
+        data.templates.forEach((t) => saveSharedTemplate(t).catch(console.warn));
       }
     }
 
-    if (currentUser && data.spices && data.spices.length > 0) {
-      saveUserRecipeState(currentUser.uid, data.spices, data.activeTemplateName || null).catch(console.warn);
+    if (data.spices && data.spices.length > 0) {
+      saveSharedRecipeState(data.spices, data.activeTemplateName || null).catch(console.warn);
     }
   };
 
@@ -507,74 +476,33 @@ export default function App() {
                   </span>
                 </h1>
 
-                {/* Cloud Sync & Offline Status Indicator */}
+                {/* Shared Cloud Sync & Offline Status Indicator */}
                 <div 
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border print:hidden transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border print:hidden transition-colors ${
                     isOnline
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                       : 'bg-amber-50 text-amber-800 border-amber-200'
                   }`}
                   title={
                     isOnline
-                      ? (isSyncing ? 'کلاؤڈ پر سنک ہو رہا ہے...' : 'کلاؤڈ فائر اسٹور فعال (آف لائن کیش محفوظ)')
-                      : 'آف لائن کیش موڈ (انٹرنیٹ کنیکٹ ہوتے ہی ڈیٹا خود بخود کلاؤڈ پر سنک ہو جائے گا)'
+                      ? (isSyncing ? 'کلاؤڈ پر سنک ہو رہا ہے...' : 'کلاؤڈ سنک فعال: تمام ڈیوائسز پر یہی ڈیٹا خود بخود لائیو سنک ہے')
+                      : 'آف لائن کیش موڈ (انٹرنیٹ بحال ہوتے ہی ڈیٹا خود بخود کلاؤڈ پر سنک ہو جائے گا)'
                   }
                 >
                   {isOnline ? (
                     <>
                       <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'} shrink-0`} />
-                      <span>{isSyncing ? 'سنک ہو رہا ہے...' : 'کلاؤڈ سنک آن لائن'}</span>
-                      <Cloud className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span>{isSyncing ? 'کلاؤڈ سنک ہو رہا ہے...' : 'کلاؤڈ لائیو سنک (مشترکہ ڈیٹا)'}</span>
+                      <Cloud className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     </>
                   ) : (
                     <>
                       <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                      <span>آف لائن کیش محفوظ</span>
-                      <CloudOff className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span>آف لائن موڈ (ڈیٹا محفوظ)</span>
+                      <CloudOff className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     </>
                   )}
                 </div>
-
-                {/* Google Account / One-Click Sync Option */}
-                {currentUser && !currentUser.isAnonymous ? (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-[11px] text-stone-700 print:hidden">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                    <span className="max-w-[120px] truncate font-medium" dir="ltr">
-                      {currentUser.displayName || currentUser.email}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => logoutUser()}
-                      className="text-stone-400 hover:text-red-600 text-[10px] underline ml-1 cursor-pointer"
-                      title="اکاؤنٹ لاگ آؤٹ کریں"
-                    >
-                      لاگ آؤٹ
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await loginWithGoogle();
-                      } catch (err: any) {
-                        if (err?.code !== 'auth/popup-closed-by-user') {
-                          console.warn('Google sign-in notice:', err);
-                        }
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white hover:bg-stone-50 border border-stone-300 text-[11px] text-stone-700 shadow-2xs transition-colors cursor-pointer print:hidden"
-                    title="گوگل اکاؤنٹ کے ساتھ کلاؤڈ بیک اپ سنک کریں"
-                  >
-                    <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                    </svg>
-                    <span>کلاؤڈ بیک اپ</span>
-                  </button>
-                )}
               </div>
 
               {/* 2. Active Template Badge (Centered) */}

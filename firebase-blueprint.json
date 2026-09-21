@@ -43,15 +43,10 @@
       "required": ["id", "name", "weightGrams"]
     },
     "UserRecipeState": {
-      "title": "UserRecipeState",
-      "description": "The user active spice list and active template name",
+      "title": "SharedRecipeState",
+      "description": "Shared family active spice list and active template name without login required",
       "type": "object",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "User identifier who owns this state",
-          "maxLength": 128
-        },
         "activeTemplateName": {
           "type": "string",
           "description": "Name of currently loaded template",
@@ -63,26 +58,21 @@
         },
         "updatedAt": {
           "type": "string",
-          "description": "Last updated ISO string or server timestamp",
+          "description": "Last updated ISO string",
           "maxLength": 50
         }
       },
-      "required": ["userId", "spices"]
+      "required": ["spices"]
     },
     "RecipeTemplate": {
       "title": "RecipeTemplate",
-      "description": "A saved recipe template formulation",
+      "description": "A saved recipe template formulation shared across all devices",
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
           "description": "Template ID",
           "maxLength": 64
-        },
-        "userId": {
-          "type": "string",
-          "description": "User identifier who owns this template",
-          "maxLength": 128
         },
         "name": {
           "type": "string",
@@ -99,17 +89,17 @@
           "description": "List of spices saved in this template"
         }
       },
-      "required": ["id", "userId", "name", "createdAt", "spices"]
+      "required": ["id", "name", "createdAt", "spices"]
     }
   },
   "firestore": {
-    "/users/{userId}/recipeState/{stateId}": {
-      "schema": "UserRecipeState",
-      "description": "Current active formulation of spices for the user"
+    "/shared/{docId}": {
+      "schema": "SharedRecipeState",
+      "description": "Shared live recipe state across family devices"
     },
-    "/users/{userId}/templates/{templateId}": {
+    "/sharedTemplates/{templateId}": {
       "schema": "RecipeTemplate",
-      "description": "Saved recipe templates created by the user"
+      "description": "Shared recipe templates accessible to family without login"
     }
   }
 }

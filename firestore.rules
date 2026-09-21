@@ -33,14 +33,14 @@ service cloud.firestore {
 
     // Shared active recipe formulation (no login required)
     match /shared/{docId} {
-      allow read: if isValidId(docId);
+      allow get, list: if true;
       allow write: if isValidId(docId) && isValidRecipeState(incoming());
     }
 
     // Shared templates collection (no login required)
     match /sharedTemplates/{templateId} {
-      allow read: if isValidId(templateId);
-      allow write: if isValidId(templateId) && isValidTemplate(incoming()) && incoming().id == templateId;
+      allow get, list: if true;
+      allow create, update: if isValidId(templateId) && isValidTemplate(incoming()) && incoming().id == templateId;
       allow delete: if isValidId(templateId);
     }
   }

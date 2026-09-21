@@ -74,7 +74,11 @@ export function subscribeSharedRecipeState(
         console.warn('Firestore offline notice for shared recipe state:', path);
         return;
       }
-      handleFirestoreError(error, OperationType.GET, path);
+      if (error?.code === 'permission-denied') {
+        console.warn('Firestore permission notice for shared recipe state (using local cache):', path);
+        return;
+      }
+      console.warn('Firestore error in subscribeSharedRecipeState:', error);
     }
   );
 }
@@ -110,7 +114,11 @@ export function subscribeSharedTemplates(
         console.warn('Firestore offline notice for shared templates:', path);
         return;
       }
-      handleFirestoreError(error, OperationType.LIST, path);
+      if (error?.code === 'permission-denied') {
+        console.warn('Firestore permission notice for shared templates (using local cache):', path);
+        return;
+      }
+      console.warn('Firestore error in subscribeSharedTemplates:', error);
     }
   );
 }

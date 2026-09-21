@@ -11,6 +11,8 @@ import {
   deleteDoc, 
   collection, 
   onSnapshot, 
+  getDoc,
+  getDocs,
   Unsubscribe 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -23,6 +25,7 @@ export interface SharedRecipeStatePayload {
 }
 
 const SHARED_RECIPE_DOC = 'recipeState';
+const SHARED_TEMPLATES_DOC = 'templatesList';
 
 /**
  * Save current active formulation to Shared Cloud Firestore
@@ -84,50 +87,159 @@ export function subscribeSharedRecipeState(
 }
 
 /**
- * Real-time listener for shared saved templates collection
+ * Direct one-time fetch of all shared templates from Cloud Firestore
+ * Ensures instant template availability on fresh browser sessions without waiting for snapshot
+ */
+export async function fetchSharedTemplatesOnce(): Promise<RecipeTemplate[]> {
+  const templatesMap = new Map<string, RecipeTemplate>();
+
+  try {
+    // 1. Try unified list document first (fastest single-doc read)
+    const listDocRef = doc(db, 'shared', SHARED_TEMPLATES_DOC);
+    const listSnap = await getDoc(listDocRef);
+    if (listSnap.exists()) {
+      const data = listSnap.data();
+      if (Array.isArray(data.templates)) {
+        data.templates.forEach((t: RecipeTemplate) => {
+          if (t && t.id && t.name) {
+            templatesMap.set(t.id, t);
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Direct read of shared templatesList doc failed/offline:', err);
+  }
+
+  try {
+    // 2. Also check sharedTemplates collection to merge any independently saved templates
+    const colRef = collection(db, 'sharedTemplates');
+    const colSnap = await getDocs(colRef);
+    colSnap.forEach((docSnap) => {
+      const d = docSnap.data();
+      if (d && d.id && d.name) {
+        templatesMap.set(d.id, {
+          id: d.id,
+          name: d.name,
+          createdAt: d.createdAt || '',
+          spices: d.spices || [],
+        });
+      }
+    });
+  } catch (err) {
+    console.warn('Direct read of sharedTemplates collection failed/offline:', err);
+  }
+
+  const result = Array.from(templatesMap.values());
+  result.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return result;
+}
+
+/**
+ * Real-time listener for shared saved templates
+ * Listens to both the unified templatesList document and the sharedTemplates collection
  */
 export function subscribeSharedTemplates(
   onData: (templates: RecipeTemplate[]) => void
 ): Unsubscribe {
-  const path = 'sharedTemplates';
   const colRef = collection(db, 'sharedTemplates');
+  const listDocRef = doc(db, 'shared', SHARED_TEMPLATES_DOC);
 
-  return onSnapshot(
+  let listDocTemplates: RecipeTemplate[] = [];
+  let colTemplates: RecipeTemplate[] = [];
+
+  const emitMerged = () => {
+    const map = new Map<string, RecipeTemplate>();
+    // Add from listDoc
+    listDocTemplates.forEach((t) => {
+      if (t && t.id) map.set(t.id, t);
+    });
+    // Add/merge from collection
+    colTemplates.forEach((t) => {
+      if (t && t.id) map.set(t.id, t);
+    });
+
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    if (merged.length > 0) {
+      onData(merged);
+    }
+  };
+
+  // Listener 1: Unified Document
+  const unsubDoc = onSnapshot(
+    listDocRef,
+    (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (Array.isArray(d.templates)) {
+          listDocTemplates = d.templates;
+          emitMerged();
+        }
+      }
+    },
+    (err) => console.warn('templatesList snapshot notice:', err)
+  );
+
+  // Listener 2: Collection
+  const unsubCol = onSnapshot(
     colRef,
     (snapshot) => {
-      const templates: RecipeTemplate[] = [];
+      const list: RecipeTemplate[] = [];
       snapshot.forEach((docSnap) => {
         const d = docSnap.data();
-        templates.push({
-          id: d.id,
-          name: d.name,
-          createdAt: d.createdAt,
-          spices: d.spices || [],
-        });
+        if (d && d.id && d.name) {
+          list.push({
+            id: d.id,
+            name: d.name,
+            createdAt: d.createdAt || '',
+            spices: d.spices || [],
+          });
+        }
       });
-      // Sort templates by creation time descending
-      templates.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      onData(templates);
+      colTemplates = list;
+      emitMerged();
     },
     (error: any) => {
-      if (error?.code === 'unavailable') {
-        console.warn('Firestore offline notice for shared templates:', path);
-        return;
-      }
-      if (error?.code === 'permission-denied') {
-        console.warn('Firestore permission notice for shared templates (using local cache):', path);
-        return;
-      }
-      console.warn('Firestore error in subscribeSharedTemplates:', error);
+      console.warn('sharedTemplates collection snapshot notice:', error);
     }
   );
+
+  return () => {
+    unsubDoc();
+    unsubCol();
+  };
 }
 
 /**
- * Save a recipe template to Shared Cloud Firestore
+ * Save full list of templates to Shared Cloud Firestore
+ */
+export async function saveSharedTemplatesList(
+  templates: RecipeTemplate[]
+): Promise<void> {
+  const path = `shared/${SHARED_TEMPLATES_DOC}`;
+  const docRef = doc(db, 'shared', SHARED_TEMPLATES_DOC);
+
+  try {
+    await setDoc(docRef, {
+      templates,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    if (error?.code === 'unavailable') {
+      console.warn('Offline cache active for shared templates list save:', path);
+      return;
+    }
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+/**
+ * Save a single recipe template to Shared Cloud Firestore (both in collection and list)
  */
 export async function saveSharedTemplate(
-  template: RecipeTemplate
+  template: RecipeTemplate,
+  currentAllTemplates?: RecipeTemplate[]
 ): Promise<void> {
   const path = `sharedTemplates/${template.id}`;
   const docRef = doc(db, 'sharedTemplates', template.id);
@@ -135,7 +247,7 @@ export async function saveSharedTemplate(
   const payload = {
     id: template.id,
     name: template.name,
-    createdAt: template.createdAt,
+    createdAt: template.createdAt || new Date().toISOString(),
     spices: template.spices,
   };
 
@@ -144,9 +256,18 @@ export async function saveSharedTemplate(
   } catch (error: any) {
     if (error?.code === 'unavailable') {
       console.warn('Offline cache active for shared template save:', path);
-      return;
+    } else {
+      handleFirestoreError(error, OperationType.WRITE, path);
     }
-    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+
+  // Also update the unified templatesList document so all browsers see it instantly
+  if (currentAllTemplates && Array.isArray(currentAllTemplates)) {
+    const updatedList = [
+      template,
+      ...currentAllTemplates.filter((t) => t.id !== template.id),
+    ];
+    await saveSharedTemplatesList(updatedList).catch(console.warn);
   }
 }
 
@@ -154,7 +275,8 @@ export async function saveSharedTemplate(
  * Delete a recipe template from Shared Cloud Firestore
  */
 export async function deleteSharedTemplate(
-  templateId: string
+  templateId: string,
+  currentAllTemplates?: RecipeTemplate[]
 ): Promise<void> {
   const path = `sharedTemplates/${templateId}`;
   const docRef = doc(db, 'sharedTemplates', templateId);
@@ -164,9 +286,14 @@ export async function deleteSharedTemplate(
   } catch (error: any) {
     if (error?.code === 'unavailable') {
       console.warn('Offline cache active for shared template delete:', path);
-      return;
+    } else {
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
-    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+
+  if (currentAllTemplates && Array.isArray(currentAllTemplates)) {
+    const updatedList = currentAllTemplates.filter((t) => t.id !== templateId);
+    await saveSharedTemplatesList(updatedList).catch(console.warn);
   }
 }
 

@@ -29,7 +29,9 @@ import {
   subscribeSharedRecipeState, 
   subscribeSharedTemplates, 
   saveSharedTemplate, 
-  deleteSharedTemplate 
+  deleteSharedTemplate,
+  fetchSharedTemplatesOnce,
+  saveSharedTemplatesList
 } from './services/spiceDbService';
 import { SpiceItem, RecipeTemplate } from './types';
 import { INITIAL_GARAM_MASALA_SPICES } from './defaultSpices';
@@ -196,9 +198,35 @@ export default function App() {
     };
   }, []);
 
-  // 2. Real-time Shared Cloud Subscriptions (Cloud -> Local Sync across all devices)
+  // 2. Real-time Shared Cloud Subscriptions & Direct Initial Fetch
   useEffect(() => {
-    // A. Subscribe to Shared Active Recipe State
+    // A. Immediate Direct Fetch of shared templates on boot (0-second wait for any new device/browser)
+    fetchSharedTemplatesOnce().then((cloudTemplates) => {
+      if (cloudTemplates && cloudTemplates.length > 0) {
+        setTemplates(cloudTemplates);
+        try {
+          localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(cloudTemplates));
+        } catch {
+          // ignore
+        }
+      } else {
+        // If cloud is empty but this device has local templates saved, upload them to cloud
+        try {
+          const saved = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+          if (saved) {
+            const localList = JSON.parse(saved);
+            if (Array.isArray(localList) && localList.length > 0) {
+              saveSharedTemplatesList(localList).catch(console.warn);
+              localList.forEach((t) => saveSharedTemplate(t).catch(console.warn));
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }).catch(console.warn);
+
+    // B. Subscribe to Shared Active Recipe State
     const unsubRecipe = subscribeSharedRecipeState((cloudData) => {
       if (cloudData && Array.isArray(cloudData.spices) && cloudData.spices.length > 0) {
         lastSyncedSignature.current = JSON.stringify({
@@ -217,10 +245,15 @@ export default function App() {
       }
     });
 
-    // B. Subscribe to Shared Saved Templates
+    // C. Subscribe to Shared Saved Templates (Real-time live push to all open tabs/browsers)
     const unsubTemplates = subscribeSharedTemplates((cloudTemplates) => {
       if (cloudTemplates && cloudTemplates.length > 0) {
         setTemplates(cloudTemplates);
+        try {
+          localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(cloudTemplates));
+        } catch {
+          // ignore
+        }
         setActiveTemplateName((prev) => {
           if (!prev || prev === 'معیاری مصالحہ مکسچر') {
             return cloudTemplates[0]?.name || 'گرم مصالحہ (روایتی فارمولا)';
@@ -288,10 +321,11 @@ export default function App() {
       }),
       spices: JSON.parse(JSON.stringify(spices)),
     };
-    setTemplates((prev) => [newTemplate, ...prev]);
+    const updated = [newTemplate, ...templates.filter((t) => t.id !== newTemplate.id)];
+    setTemplates(updated);
     setActiveTemplateName(name);
 
-    saveSharedTemplate(newTemplate).catch((err) => {
+    saveSharedTemplate(newTemplate, updated).catch((err) => {
       console.warn('Template cloud save notice:', err);
     });
     saveSharedRecipeState(spices, name).catch(console.warn);
@@ -308,14 +342,14 @@ export default function App() {
 
   // Delete a saved template (deleted across all devices)
   const handleDeleteTemplate = (id: string) => {
+    const remaining = templates.filter((t) => t.id !== id);
     const deletedTpl = templates.find((t) => t.id === id);
     if (deletedTpl && activeTemplateName === deletedTpl.name) {
-      const remaining = templates.filter((t) => t.id !== id);
       setActiveTemplateName(remaining[0]?.name || 'گرم مصالحہ (روایتی فارمولا)');
     }
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    setTemplates(remaining);
 
-    deleteSharedTemplate(id).catch((err) => {
+    deleteSharedTemplate(id, remaining).catch((err) => {
       console.warn('Template cloud delete notice:', err);
     });
   };
@@ -340,11 +374,13 @@ export default function App() {
           const existingIds = new Set(prev.map((t) => t.id));
           const newTemplates = data.templates.filter((t) => !existingIds.has(t.id));
           const merged = [...prev, ...newTemplates];
+          saveSharedTemplatesList(merged).catch(console.warn);
           newTemplates.forEach((t) => saveSharedTemplate(t).catch(console.warn));
           return merged;
         });
       } else {
         setTemplates(data.templates);
+        saveSharedTemplatesList(data.templates).catch(console.warn);
         data.templates.forEach((t) => saveSharedTemplate(t).catch(console.warn));
       }
     }

@@ -18,23 +18,30 @@ service cloud.firestore {
       return data.keys().hasAll(['spices']) &&
              data.spices is list &&
              data.spices.size() <= 200 &&
-             (!('activeTemplateName' in data) || (data.activeTemplateName is string && data.activeTemplateName.size() <= 100)) &&
-             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50));
+             (!('activeTemplateName' in data) || (data.activeTemplateName is string && data.activeTemplateName.size() <= 150)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 60));
+    }
+
+    function isValidTemplatesDoc(data) {
+      return data.keys().hasAll(['templates']) &&
+             data.templates is list &&
+             data.templates.size() <= 100 &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 60));
     }
 
     function isValidTemplate(data) {
-      return data.keys().hasAll(['id', 'name', 'createdAt', 'spices']) &&
-             data.id is string && data.id.size() <= 64 &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.createdAt is string && data.createdAt.size() <= 50 &&
+      return data.keys().hasAll(['id', 'name', 'spices']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 100)) &&
              data.spices is list &&
              data.spices.size() <= 200;
     }
 
-    // Shared active recipe formulation (no login required)
+    // Shared active recipe formulation & shared templates list (no login required)
     match /shared/{docId} {
       allow get, list: if true;
-      allow write: if isValidId(docId) && isValidRecipeState(incoming());
+      allow write: if isValidId(docId) && (isValidRecipeState(incoming()) || isValidTemplatesDoc(incoming()));
     }
 
     // Shared templates collection (no login required)

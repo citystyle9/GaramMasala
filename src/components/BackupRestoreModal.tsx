@@ -59,7 +59,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         appName: 'Spice Organizer',
         version: '1.0',
         exportedAt: now.toISOString(),
-        activeTemplateName: activeTemplateName || 'معیاری مصالحہ مکسچر',
+        activeTemplateName: activeTemplateName || 'گرم مصالحہ (روایتی فارمولا)',
         spices,
         templates,
       };

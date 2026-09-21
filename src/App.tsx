@@ -6,7 +6,7 @@
  * localStorage persistence, print styling, and recipe template management.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Sparkles, 
   RotateCcw, 
@@ -102,10 +102,12 @@ export default function App() {
   // Active template name currently loaded
   const [activeTemplateName, setActiveTemplateName] = useState<string | null>(() => {
     try {
-      return localStorage.getItem(ACTIVE_TEMPLATE_STORAGE_KEY) || 'معیاری مصالحہ مکسچر';
+      const saved = localStorage.getItem(ACTIVE_TEMPLATE_STORAGE_KEY);
+      if (saved && saved !== 'معیاری مصالحہ مکسچر') return saved;
     } catch {
-      return 'معیاری مصالحہ مکسچر';
+      // ignore
     }
+    return null;
   });
 
   // Saved templates state
@@ -122,6 +124,31 @@ export default function App() {
     return [];
   });
 
+  // Accurate Active Template Name Resolution:
+  // 1. If activeTemplateName is set and not the old placeholder, use it
+  // 2. Otherwise check if current spices match any saved template
+  // 3. Otherwise if saved templates exist, use the first saved template's name
+  // 4. Fallback default: 'گرم مصالحہ (روایتی فارمولا)'
+  const currentTemplateName = useMemo(() => {
+    if (activeTemplateName && activeTemplateName !== 'معیاری مصالحہ مکسچر') {
+      return activeTemplateName;
+    }
+    // Check if current spices match any template in the user's saved list
+    for (const tpl of templates) {
+      if (tpl.spices && tpl.spices.length === spices.length) {
+        const isMatch = tpl.spices.every((ts) => {
+          const cs = spices.find((s) => s.id === ts.id || s.name === ts.name);
+          return cs && Number(cs.weightGrams) === Number(ts.weightGrams);
+        });
+        if (isMatch) return tpl.name;
+      }
+    }
+    if (templates.length > 0) {
+      return templates[0].name;
+    }
+    return 'گرم مصالحہ (روایتی فارمولا)';
+  }, [activeTemplateName, templates, spices]);
+
   // Save templates to localStorage
   useEffect(() => {
     try {
@@ -134,15 +161,13 @@ export default function App() {
   // Save active template name to localStorage
   useEffect(() => {
     try {
-      if (activeTemplateName) {
-        localStorage.setItem(ACTIVE_TEMPLATE_STORAGE_KEY, activeTemplateName);
-      } else {
-        localStorage.removeItem(ACTIVE_TEMPLATE_STORAGE_KEY);
+      if (currentTemplateName && currentTemplateName !== 'معیاری مصالحہ مکسچر') {
+        localStorage.setItem(ACTIVE_TEMPLATE_STORAGE_KEY, currentTemplateName);
       }
     } catch {
       // ignore
     }
-  }, [activeTemplateName]);
+  }, [currentTemplateName]);
 
   // Save to localStorage
   useEffect(() => {
@@ -173,12 +198,12 @@ export default function App() {
     const unsubRecipe = subscribeSharedRecipeState((cloudData) => {
       if (cloudData && Array.isArray(cloudData.spices) && cloudData.spices.length > 0) {
         setSpices(cloudData.spices);
-        if (cloudData.activeTemplateName) {
+        if (cloudData.activeTemplateName && cloudData.activeTemplateName !== 'معیاری مصالحہ مکسچر') {
           setActiveTemplateName(cloudData.activeTemplateName);
         }
       } else {
         // First-time setup: sync current spices to shared cloud
-        saveSharedRecipeState(spices, activeTemplateName).catch((err) => {
+        saveSharedRecipeState(spices, currentTemplateName).catch((err) => {
           console.warn('Initial shared cloud sync:', err);
         });
       }
@@ -188,6 +213,12 @@ export default function App() {
     const unsubTemplates = subscribeSharedTemplates((cloudTemplates) => {
       if (cloudTemplates && cloudTemplates.length > 0) {
         setTemplates(cloudTemplates);
+        setActiveTemplateName((prev) => {
+          if (!prev || prev === 'معیاری مصالحہ مکسچر') {
+            return cloudTemplates[0]?.name || 'گرم مصالحہ (روایتی فارمولا)';
+          }
+          return prev;
+        });
       }
     });
 
@@ -201,7 +232,7 @@ export default function App() {
   useEffect(() => {
     setIsSyncing(true);
     const timer = setTimeout(() => {
-      saveSharedRecipeState(spices, activeTemplateName)
+      saveSharedRecipeState(spices, currentTemplateName)
         .then(() => {
           setIsSyncing(false);
         })
@@ -212,7 +243,7 @@ export default function App() {
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [spices, activeTemplateName]);
+  }, [spices, currentTemplateName]);
 
   // Save current spices as a new template (shared to all devices)
   const handleSaveTemplate = (name: string) => {
@@ -232,19 +263,24 @@ export default function App() {
     saveSharedTemplate(newTemplate).catch((err) => {
       console.warn('Template cloud save notice:', err);
     });
+    saveSharedRecipeState(spices, name).catch(console.warn);
   };
 
   // Load a saved template
   const handleLoadTemplate = (template: RecipeTemplate) => {
     setSpices(JSON.parse(JSON.stringify(template.spices)));
     setActiveTemplateName(template.name);
+    saveSharedRecipeState(template.spices, template.name).catch((err) => {
+      console.warn('Load template cloud save notice:', err);
+    });
   };
 
   // Delete a saved template (deleted across all devices)
   const handleDeleteTemplate = (id: string) => {
     const deletedTpl = templates.find((t) => t.id === id);
     if (deletedTpl && activeTemplateName === deletedTpl.name) {
-      setActiveTemplateName('اپنی مرضی کا فارمولا (کسٹم)');
+      const remaining = templates.filter((t) => t.id !== id);
+      setActiveTemplateName(remaining[0]?.name || 'گرم مصالحہ (روایتی فارمولا)');
     }
     setTemplates((prev) => prev.filter((t) => t.id !== id));
 
@@ -438,9 +474,7 @@ export default function App() {
 
   const handlePrint = () => {
     const originalTitle = document.title;
-    if (activeTemplateName) {
-      document.title = activeTemplateName;
-    }
+    document.title = currentTemplateName;
     window.print();
     setTimeout(() => {
       document.title = originalTitle;
@@ -454,7 +488,7 @@ export default function App() {
         @media print {
           @page {
             @bottom-right {
-              content: "${(activeTemplateName || 'معیاری مصالحہ مکسچر').replace(/"/g, '\\"')}";
+              content: "${currentTemplateName.replace(/"/g, '\\"')}";
             }
           }
         }
@@ -463,58 +497,84 @@ export default function App() {
       <div className="max-w-4xl mx-auto">
         
         {/* Top Header Card */}
-        <header className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-6 shadow-xs mb-6 print:border-b print:border-stone-300 print:rounded-none print:shadow-none print:p-2 print:mb-4">
-          <div className="flex flex-col items-center text-center gap-4">
-            
-            {/* 1. Main Title (Centered) */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center justify-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-2.5">
-                  <span>مصالحہ آرگنائزر</span>
-                  <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans print:hidden" dir="ltr">
-                    Spice Organizer
-                  </span>
-                </h1>
-
-                {/* Shared Cloud Sync & Offline Status Indicator */}
-                <div 
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border print:hidden transition-colors ${
-                    isOnline
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      : 'bg-amber-50 text-amber-800 border-amber-200'
-                  }`}
-                  title={
-                    isOnline
-                      ? (isSyncing ? 'کلاؤڈ پر سنک ہو رہا ہے...' : 'کلاؤڈ سنک فعال: تمام ڈیوائسز پر یہی ڈیٹا خود بخود لائیو سنک ہے')
-                      : 'آف لائن کیش موڈ (انٹرنیٹ بحال ہوتے ہی ڈیٹا خود بخود کلاؤڈ پر سنک ہو جائے گا)'
-                  }
-                >
-                  {isOnline ? (
-                    <>
-                      <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'} shrink-0`} />
-                      <span>{isSyncing ? 'کلاؤڈ سنک ہو رہا ہے...' : 'کلاؤڈ لائیو سنک (مشترکہ ڈیٹا)'}</span>
-                      <Cloud className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                      <span>آف لائن موڈ (ڈیٹا محفوظ)</span>
-                      <CloudOff className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* 2. Active Template Badge (Centered) */}
-              {activeTemplateName && (
-                <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 text-xs font-medium shadow-2xs mt-0.5">
-                  <Bookmark className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                  <span className="text-stone-700 font-semibold">ٹیمپلیٹ (Template):</span>
-                  <span className="font-bold text-amber-900 underline decoration-amber-400 underline-offset-2">
-                    {activeTemplateName}
-                  </span>
-                </div>
+        <header className="relative bg-white border border-stone-200 rounded-2xl p-5 sm:p-6 shadow-xs mb-6 print:border-b print:border-stone-300 print:rounded-none print:shadow-none print:p-2 print:mb-4">
+          
+          {/* A. Shared Cloud Sync Status - Completely separated from Title (Never causes title or row to move) */}
+          <div className="sm:absolute sm:left-5 sm:top-5 mb-3 sm:mb-0 print:hidden flex justify-center">
+            <div 
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors w-[155px] justify-center select-none ${
+                isOnline
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-amber-50 text-amber-800 border-amber-200'
+              }`}
+              title={
+                isOnline
+                  ? (isSyncing ? 'کلاؤڈ پر سنک ہو رہا ہے...' : 'کلاؤڈ سنک فعال: تمام ڈیوائسز پر یہی ڈیٹا خود بخود لائیو سنک ہے')
+                  : 'آف لائن کیش موڈ (انٹرنیٹ بحال ہوتے ہی ڈیٹا خود بخود کلاؤڈ پر سنک ہو جائے گا)'
+              }
+            >
+              {isOnline ? (
+                <>
+                  <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'} shrink-0`} />
+                  <span className="truncate">{isSyncing ? 'سنک ہو رہا ہے...' : 'کلاؤڈ لائیو سنک'}</span>
+                  <Cloud className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span className="truncate">آف لائن موڈ</span>
+                  <CloudOff className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                </>
               )}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center text-center gap-3 sm:gap-4">
+            
+            {/* 1. Main Title (Centered & Completely Isolated - Never Shifts) */}
+            <div className="flex flex-col items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight flex items-center justify-center gap-2.5">
+                <span>مصالحہ آرگنائزر</span>
+                <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans print:hidden" dir="ltr">
+                  Spice Organizer
+                </span>
+              </h1>
+
+              {/* 2. Active Template Badge (Centered & Interactive with True Name) */}
+              <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 text-xs font-medium shadow-2xs mt-0.5">
+                <Bookmark className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span className="text-stone-700 font-semibold">ٹیمپلیٹ (Template):</span>
+                {templates.length > 1 ? (
+                  <select
+                    value={currentTemplateName}
+                    onChange={(e) => {
+                      const selected = templates.find((t) => t.name === e.target.value);
+                      if (selected) {
+                        handleLoadTemplate(selected);
+                      } else {
+                        setActiveTemplateName(e.target.value);
+                      }
+                    }}
+                    className="bg-transparent font-bold text-amber-900 underline decoration-amber-400 underline-offset-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500 rounded px-1 py-0.5 text-xs"
+                    title="ٹیمپلیٹ منتخب کریں"
+                  >
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.name} className="text-stone-900 bg-white">
+                        {tpl.name}
+                      </option>
+                    ))}
+                    {!templates.some((t) => t.name === currentTemplateName) && (
+                      <option value={currentTemplateName} className="text-stone-900 bg-white">
+                        {currentTemplateName}
+                      </option>
+                    )}
+                  </select>
+                ) : (
+                  <span className="font-bold text-amber-900 underline decoration-amber-400 underline-offset-2">
+                    {currentTemplateName}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* 3. Action Buttons Row (Centered) */}

@@ -36,7 +36,7 @@ export async function saveSharedRecipeState(
   
   const payload: SharedRecipeStatePayload = {
     spices,
-    activeTemplateName: activeTemplateName || 'معیاری مصالحہ مکسچر',
+    activeTemplateName: activeTemplateName || 'گرم مصالحہ (روایتی فارمولا)',
     updatedAt: new Date().toISOString(),
   };
 

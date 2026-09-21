@@ -18,8 +18,20 @@ import {
   ArrowUpDown,
   Info,
   Bookmark,
-  X
+  X,
+  Cloud,
+  CloudOff,
+  RefreshCw
 } from 'lucide-react';
+import { User, onAuthStateChanged } from 'firebase/auth';
+import { auth, ensureAnonymousAuth } from './firebase';
+import { 
+  saveUserRecipeState, 
+  subscribeUserRecipeState, 
+  subscribeUserTemplates, 
+  saveTemplateToCloud, 
+  deleteTemplateFromCloud 
+} from './services/spiceDbService';
 import { SpiceItem, RecipeTemplate } from './types';
 import { INITIAL_GARAM_MASALA_SPICES } from './defaultSpices';
 import { SpiceRow } from './components/SpiceRow';
@@ -31,6 +43,13 @@ const TEMPLATES_STORAGE_KEY = 'garam_masala_templates_v1';
 const ACTIVE_TEMPLATE_STORAGE_KEY = 'garam_masala_active_template_v1';
 
 export default function App() {
+  // Authentication & Online Network status
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(() => 
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
   const [spices, setSpices] = useState<SpiceItem[]>(() => {
     try {
       const saved =
@@ -127,6 +146,96 @@ export default function App() {
     }
   }, [activeTemplateName]);
 
+  // Save to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(spices));
+    } catch {
+      // ignore
+    }
+  }, [spices]);
+
+  // 1. Initialize Auth and Online/Offline Listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Silently sign in anonymously without any password
+    ensureAnonymousAuth().then((authUser) => {
+      if (authUser) {
+        setCurrentUser(authUser);
+      }
+    });
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (authUser) => {
+      setCurrentUser(authUser);
+    });
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      unsubscribeAuth();
+    };
+  }, []);
+
+  // 2. Real-time Cloud Subscriptions (Cloud -> Local Sync)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // A. Subscribe to User's Active Recipe State
+    const unsubRecipe = subscribeUserRecipeState(currentUser.uid, (cloudData) => {
+      if (cloudData && Array.isArray(cloudData.spices) && cloudData.spices.length > 0) {
+        setSpices(cloudData.spices);
+        if (cloudData.activeTemplateName) {
+          setActiveTemplateName(cloudData.activeTemplateName);
+        }
+      } else {
+        // First-time setup: sync current default spices to cloud
+        saveUserRecipeState(currentUser.uid, spices, activeTemplateName).catch((err) => {
+          console.warn('Initial cloud sync:', err);
+        });
+      }
+    });
+
+    // B. Subscribe to User's Saved Templates
+    const unsubTemplates = subscribeUserTemplates(currentUser.uid, (cloudTemplates) => {
+      if (cloudTemplates && cloudTemplates.length > 0) {
+        setTemplates(cloudTemplates);
+      }
+    });
+
+    return () => {
+      unsubRecipe();
+      unsubTemplates();
+    };
+  }, [currentUser]);
+
+  // 3. Debounced Auto-Sync to Cloud Firestore (Local -> Cloud Sync)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    setIsSyncing(true);
+    const timer = setTimeout(() => {
+      saveUserRecipeState(currentUser.uid, spices, activeTemplateName)
+        .then(() => {
+          setIsSyncing(false);
+        })
+        .catch((err) => {
+          console.warn('Auto cloud sync notice:', err);
+          setIsSyncing(false);
+        });
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [spices, activeTemplateName, currentUser]);
+
   // Save current spices as a new template
   const handleSaveTemplate = (name: string) => {
     const newTemplate: RecipeTemplate = {
@@ -141,6 +250,12 @@ export default function App() {
     };
     setTemplates((prev) => [newTemplate, ...prev]);
     setActiveTemplateName(name);
+
+    if (currentUser) {
+      saveTemplateToCloud(currentUser.uid, newTemplate).catch((err) => {
+        console.warn('Template cloud save notice:', err);
+      });
+    }
   };
 
   // Load a saved template
@@ -156,16 +271,13 @@ export default function App() {
       setActiveTemplateName('اپنی مرضی کا فارمولا (کسٹم)');
     }
     setTemplates((prev) => prev.filter((t) => t.id !== id));
-  };
 
-  // Save to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(spices));
-    } catch {
-      // ignore
+    if (currentUser) {
+      deleteTemplateFromCloud(currentUser.uid, id).catch((err) => {
+        console.warn('Template cloud delete notice:', err);
+      });
     }
-  }, [spices]);
+  };
 
   // Calculate total grams
   const totalWeight = spices.reduce((sum, item) => sum + (Number(item.weightGrams) || 0), 0);
@@ -355,6 +467,34 @@ export default function App() {
                     Spice Organizer
                   </span>
                 </h1>
+
+                {/* Cloud Sync & Offline Status Indicator */}
+                <div 
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border print:hidden transition-colors ${
+                    isOnline
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-amber-50 text-amber-800 border-amber-200'
+                  }`}
+                  title={
+                    isOnline
+                      ? (isSyncing ? 'کلاؤڈ پر سنک ہو رہا ہے...' : 'کلاؤڈ فائر اسٹور فعال (آف لائن کیش محفوظ)')
+                      : 'آف لائن کیش موڈ (انٹرنیٹ کنیکٹ ہوتے ہی ڈیٹا خود بخود کلاؤڈ پر سنک ہو جائے گا)'
+                  }
+                >
+                  {isOnline ? (
+                    <>
+                      <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'} shrink-0`} />
+                      <span>{isSyncing ? 'سنک ہو رہا ہے...' : 'کلاؤڈ سنک آن لائن'}</span>
+                      <Cloud className="w-3 h-3 text-emerald-600 shrink-0" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      <span>آف لائن کیش محفوظ</span>
+                      <CloudOff className="w-3 h-3 text-amber-600 shrink-0" />
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* 2. Active Template Badge (Centered) */}

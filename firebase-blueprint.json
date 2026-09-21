@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "SpiceItem": {
+      "title": "SpiceItem",
+      "description": "An individual spice ingredient with weight and household measures",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the spice",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Urdu name of spice",
+          "maxLength": 100
+        },
+        "englishName": {
+          "type": "string",
+          "description": "English name of spice",
+          "maxLength": 100
+        },
+        "weightGrams": {
+          "type": "number",
+          "description": "Weight in grams"
+        },
+        "householdAmount": {
+          "type": "string",
+          "description": "Household amount number or fraction",
+          "maxLength": 20
+        },
+        "householdUnit": {
+          "type": "string",
+          "description": "Household unit",
+          "maxLength": 20
+        },
+        "householdMeasure": {
+          "type": "string",
+          "description": "Combined display string for household measure",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "name", "weightGrams"]
+    },
+    "UserRecipeState": {
+      "title": "UserRecipeState",
+      "description": "The user active spice list and active template name",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User identifier who owns this state",
+          "maxLength": 128
+        },
+        "activeTemplateName": {
+          "type": "string",
+          "description": "Name of currently loaded template",
+          "maxLength": 100
+        },
+        "spices": {
+          "type": "array",
+          "description": "List of active spices in recipe order"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last updated ISO string or server timestamp",
+          "maxLength": 50
+        }
+      },
+      "required": ["userId", "spices"]
+    },
+    "RecipeTemplate": {
+      "title": "RecipeTemplate",
+      "description": "A saved recipe template formulation",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Template ID",
+          "maxLength": 64
+        },
+        "userId": {
+          "type": "string",
+          "description": "User identifier who owns this template",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Template name",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp",
+          "maxLength": 50
+        },
+        "spices": {
+          "type": "array",
+          "description": "List of spices saved in this template"
+        }
+      },
+      "required": ["id", "userId", "name", "createdAt", "spices"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/recipeState/{stateId}": {
+      "schema": "UserRecipeState",
+      "description": "Current active formulation of spices for the user"
+    },
+    "/users/{userId}/templates/{templateId}": {
+      "schema": "RecipeTemplate",
+      "description": "Saved recipe templates created by the user"
+    }
+  }
+}
